@@ -1,7 +1,14 @@
 <?php
 
-defined('DBDRIVER') or define('DBDRIVER', 'mysql');
-defined('DBHOST') or define('DBHOST', 'zerafilas.mysql.dbaas.com.br');
-defined('DBNAME') or define('DBNAME', 'zerafilas');
-defined('DBUSER') or define('DBUSER', 'zerafilas');
-defined('DBPASS') or define('DBPASS', 'dT5ueWiB2Jd4');
+// Credenciais do banco vêm de variáveis de ambiente (ver server/.env.example).
+// Nunca commitar valores reais neste arquivo.
+$env = function ($key, $default = null) {
+    $value = getenv($key);
+    return $value === false ? $default : $value;
+};
+
+defined('DBDRIVER') or define('DBDRIVER', $env('DB_DRIVER', 'mysql'));
+defined('DBHOST') or define('DBHOST', $env('DB_HOST', 'localhost'));
+defined('DBNAME') or define('DBNAME', $env('DB_NAME', 'zerafilas'));
+defined('DBUSER') or define('DBUSER', $env('DB_USER', ''));
+defined('DBPASS') or define('DBPASS', $env('DB_PASS', ''));
