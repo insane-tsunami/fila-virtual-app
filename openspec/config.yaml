@@ -1,0 +1,40 @@
+schema: spec-driven
+
+context: |
+  Language: pt-BR
+  All artifacts must be written in pt-BR.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Projeto: ZeraFilas / Fila Virtual (MegaHack 2.0) — plataforma de fila virtual
+  para estabelecimentos atenderem clientes sem aglomeração.
+  Front-end: React 16 (Create React App 3.4.1), Material-UI v4, styled-components,
+  react-router v5. Rotas: /, /cadastro, /login, /dashboard, /dashboard/qrcode,
+  /dashboard/perfil.
+  Backend (server/): PHP + Composer (illuminate/database, guzzle), MySQL, tabela
+  zf_line (id, phone, status, checkIn, checkOut). Ainda sem controllers/models.
+  Estado atual: front com dados fictícios, sem integração com API nem autenticação.
+  Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
+  ambiente (ver server/.env.example).
+  Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
