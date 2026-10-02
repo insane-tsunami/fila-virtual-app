@@ -127,7 +127,7 @@ const data = [
   },
 ];
 
-export default function Dashbboard() {
+export default function Dashboard() {
   const classes = useStyles();
   const [clients, setClients] = useState(data);
   const [update, setUpdate] = useState(false);

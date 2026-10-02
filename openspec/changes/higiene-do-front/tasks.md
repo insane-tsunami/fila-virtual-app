@@ -2,7 +2,7 @@
 
 ## 1. Renomear a pasta
 
-- [ ] 1.1 Executar `git mv src/Dashbboard src/Dashboard` e ajustar os três imports de `./Dashbboard` em `src/App.js`; verificar com `grep -rn "Dashbboard" src` (sem resultados) e `yarn build` (compila sem erro)
+- [x] 1.1 Executar `git mv src/Dashbboard src/Dashboard` e ajustar os três imports de `./Dashbboard` em `src/App.js`; verificar com `grep -rn "Dashbboard" src` (sem resultados) e `yarn build` (compila sem erro)
 
 ## 2. Estabelecimento e avatar compartilhados
 
