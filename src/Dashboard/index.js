@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
@@ -7,6 +7,7 @@ import Avatar from '@material-ui/core/Avatar';
 import {
   Wrapper,
   BarNavigation,
+  BarAvatar,
   Container,
   Content,
   Painel,
@@ -16,6 +17,7 @@ import {
 } from './styles';
 
 import Nav from './Nav';
+import { nome, inicial } from './estabelecimento';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -23,10 +25,6 @@ const useStyles = makeStyles((theme) => ({
     '& > *': {
       margin: theme.spacing(1),
     },
-  },
-  large: {
-    width: theme.spacing(7),
-    height: theme.spacing(7),
   },
   title: {
     fontSize: 20,
@@ -46,116 +44,93 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const data = [
+const initialClients = [
   {
     id: 10031,
     position: 31,
     number: '*****5314',
-    status: 'current',
   },
   {
     id: 10032,
     position: 32,
     number: '*****5314',
-    status: 'next',
   },
   {
     id: 10033,
     position: 33,
     number: '*****1245',
-    status: 'wait',
   },
   {
     id: 10034,
     position: 34,
     number: '*****1155',
-    status: 'wait',
   },
   {
     id: 10035,
     position: 35,
     number: '*****2414',
-    status: 'wait',
   },
   {
     id: 10036,
     position: 36,
     number: '*****1679',
-    status: 'wait',
   },
   {
     id: 10037,
     position: 37,
     number: '*****1247',
-    status: 'wait',
   },
   {
     id: 10038,
     position: 38,
     number: '*****3347',
-    status: 'wait',
   },
   {
     id: 10039,
     position: 39,
     number: '*****9854',
-    status: 'wait',
   },
   {
     id: 10040,
     position: 40,
     number: '*****9854',
-    status: 'wait',
   },
   {
     id: 10041,
     position: 41,
     number: '*****9854',
-    status: 'wait',
   },
   {
     id: 10042,
     position: 42,
     number: '*****9854',
-    status: 'wait',
   },
   {
     id: 10043,
     position: 43,
     number: '*****9854',
-    status: 'wait',
   },
 ];
 
 export default function Dashboard() {
   const classes = useStyles();
-  const [clients, setClients] = useState(data);
-  const [update, setUpdate] = useState(false);
-
-  useEffect(() => {
-    setClients(data);
-    setUpdate(false);
-  }, [update]);
+  const [clients, setClients] = useState(initialClients);
 
   function handleEndService() {
-    if (data.length) {
-      data.shift();
-      if (data[0]) {
-        data[0].status = 'current';
-      }
-      if (data[1]) {
-        data[1].status = 'next';
-      }
-      setUpdate(true);
-    } else {
-      setUpdate(false);
-    }
+    setClients((current) => current.slice(1));
   }
+
+  function statusOf(index) {
+    if (index === 0) return 'current';
+    if (index === 1) return 'next';
+    return 'wait';
+  }
+
   return (
     <Wrapper>
       <BarNavigation>
-        <Avatar className={classes.large}>V</Avatar>
-        <p>Veste Bem</p>
+        <BarAvatar>{inicial}</BarAvatar>
+        <p>{nome}</p>
         <Nav />
       </BarNavigation>
       <Container>
@@ -163,27 +138,27 @@ export default function Dashboard() {
         <Content>
           <Painel size="300px">
             <h3>Fila</h3>
-            {clients.length &&
-              clients.map((c) => (
-                <Client key={c.id} status={c.status}>
+            {clients.length > 0 &&
+              clients.map((c, index) => (
+                <Client key={c.id} status={statusOf(index)}>
                   <Avatar
                     className={`${
-                      c.status === 'next' ? classes.secondary : ''
+                      statusOf(index) === 'next' ? classes.secondary : ''
                     }`}
                   >
                     {c.position}
                   </Avatar>
-                  <Number status={c.status}>{c.number}</Number>
+                  <Number status={statusOf(index)}>{c.number}</Number>
                 </Client>
               ))}
             {clients.length === 1 && <p>Fila vazia</p>}
           </Painel>
           <Painel>
             <h3>Em Atendimento</h3>
-            {clients.length && (
+            {clients.length > 0 && (
               <InAttendance onClick={() => handleEndService()}>
                 <Avatar className={classes.current}>
-                  {clients.length && clients[0].position}
+                  {clients[0].position}
                 </Avatar>
                 <Typography variant="overline" display="block">
                   Finalizar Atendimento
