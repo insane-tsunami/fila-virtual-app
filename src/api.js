@@ -41,7 +41,8 @@ async function requisitar(metodo, caminho, corpo) {
 
 const slugUrl = (slug) => encodeURIComponent(slug);
 
-export const buscarLoja = (slug) => requisitar('GET', `/api/filas/${slugUrl(slug)}`);
+export const buscarLoja = (slug) =>
+  requisitar('GET', `/api/filas/${slugUrl(slug)}`);
 
 export const entrarNaFila = (slug, telefone) =>
   requisitar('POST', `/api/filas/${slugUrl(slug)}/entradas`, { telefone });

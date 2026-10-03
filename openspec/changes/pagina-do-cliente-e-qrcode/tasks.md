@@ -15,9 +15,9 @@
 
 ## 3. Front: página pública do cliente
 
-- [ ] 3.1 Criar `src/Cliente/armazenamento.js` (guardar, ler e apagar o código da entrada por loja, sem estourar se o armazenamento estiver bloqueado); verificar com testes: ida e volta por loja, lojas independentes e armazenamento bloqueado (`setItem` e `getItem` lançando erro) sem exceção
-- [ ] 3.2 Criar `src/Cliente/` com o formulário e a rota `/fila/:slug` em `src/App.js`: nome da loja, campo "Seu telefone (com DDD)", botão "Entrar na fila", "Loja não encontrada.", entrada na fila, erro de validação mantendo o telefone e a falha de comunicação ao entrar; verificar com testes de renderização dos cenários de "Página pública da fila da loja", "Entrar na fila" e da falha ao entrar, e que a rota nova convive com as rotas atuais
-- [ ] 3.3 Implementar o acompanhamento (consulta a cada 5 segundos sem sobrepor chamadas, limpeza ao desmontar, "Atendimento finalizado" e "Entrar na fila de novo"), a retomada pelo código guardado (inclusive `404` e armazenamento bloqueado), a falha durante o acompanhamento e a ausência de telefones na tela; verificar com testes e relógio simulado dos cenários de "Acompanhamento automático", "Continuar depois de fechar a página", "Falhas de comunicação" e "Sem telefones na tela de acompanhamento"
+- [x] 3.1 Criar `src/Cliente/armazenamento.js` (guardar, ler e apagar o código da entrada por loja, sem estourar se o armazenamento estiver bloqueado); verificar com testes: ida e volta por loja, lojas independentes e armazenamento bloqueado (`setItem` e `getItem` lançando erro) sem exceção
+- [x] 3.2 Criar `src/Cliente/` com o formulário e a rota `/fila/:slug` em `src/App.js`: nome da loja, campo "Seu telefone (com DDD)", botão "Entrar na fila", "Loja não encontrada.", entrada na fila, erro de validação mantendo o telefone e a falha de comunicação ao entrar; verificar com testes de renderização dos cenários de "Página pública da fila da loja", "Entrar na fila" e da falha ao entrar, e que a rota nova convive com as rotas atuais
+- [x] 3.3 Implementar o acompanhamento (consulta a cada 5 segundos sem sobrepor chamadas, limpeza ao desmontar, "Atendimento finalizado" e "Entrar na fila de novo"), a retomada pelo código guardado (inclusive `404` e armazenamento bloqueado), a falha durante o acompanhamento e a ausência de telefones na tela; verificar com testes e relógio simulado dos cenários de "Acompanhamento automático", "Continuar depois de fechar a página", "Falhas de comunicação" e "Sem telefones na tela de acompanhamento"
 
 ## 4. Front: QR code da loja
 
