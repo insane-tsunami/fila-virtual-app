@@ -22,17 +22,17 @@ Não existe `.github/` nem `.nvmrc`; `package.json` não tem `engines`; o README
 
 2. **CLI do OpenSpec via `npx --yes @fission-ai/openspec@1.14.0`, com a versão fixada**, sem adicioná-la às dependências do projeto. Instalar a CLI no `package.json` quebraria o Node 16 (por causa do `engines` dela) e a versão fixada evita que uma atualização da ferramenta reprove o CI sem mudança nenhuma no repositório. Atualizar a versão vira um commit explícito. Define-se `OPENSPEC_TELEMETRY=0` para não enviar telemetria do CI.
 
-3. **`.nvmrc` com `16` e `engines.node` em `>=16 <17`.** O `.nvmrc` serve ao `nvm use` e ao `actions/setup-node` (`node-version-file: .nvmrc`), que mantém uma única fonte da verdade para o job `app`. O `engines` faz o `yarn install` recusar versões incompatíveis em vez de falhar mais tarde com um erro de OpenSSL difícil de entender. Contorno consciente: `--ignore-engines`.
+3. **`.nvmrc` com `16` e `engines.node` em `>=16 <17`.** O `.nvmrc` serve ao `nvm use` e ao `actions/setup-node` (`node-version-file: .nvmrc`), que mantém uma única fonte da verdade para o job `app`. O `engines` faz o `yarn install` recusar versões incompatíveis em vez de falhar mais tarde com um erro de OpenSSL difícil de entender. Contorno consciente: `yarn --ignore-engines <comando>`; verificado que o `engines` bloqueia também `yarn lint`, `yarn test` e `yarn build`, não só o `install`, e que no Node 22 o build ainda exige `NODE_OPTIONS=--openssl-legacy-provider`.
 
 4. **Cache de dependências** com `actions/setup-node` (`cache: yarn`), que usa o `yarn.lock`. Reduz o tempo do job sem lógica própria.
 
-5. **Gatilhos `push` e `pull_request` só para `master`.** Evita rodar duas vezes em branches de trabalho com PR aberto, e cobre também o commit de merge na `master`. Adiciona-se `concurrency` por ref com `cancel-in-progress` para cancelar execuções obsoletas do mesmo PR.
+5. **Gatilhos `push` e `pull_request` só para `master`.** Evita rodar duas vezes em branches de trabalho com PR aberto, e cobre também o commit de merge na `master`. Adiciona-se `concurrency` por ref, com `cancel-in-progress` só em `pull_request`, para cancelar execuções obsoletas do mesmo PR sem nunca cancelar a execução de um push na `master`.
 
 6. **Permissões mínimas** (`permissions: contents: read`) no workflow, já que nenhum job escreve no repositório.
 
 7. **Versões das actions** fixadas em tags maiores (`actions/checkout@v4`, `actions/setup-node@v4`). O `setup-node@v4` roda em Node 20 no runner, mas instala o Node 16 pedido para os passos do projeto.
 
-8. **`yarn build` sem `CI=true` explícito:** o GitHub Actions já define `CI=true`, o que faz o CRA tratar warnings do build como erros. Isso é desejado e já se verificou que o build atual compila sem warnings.
+8. **`CI: 'true'` explícito no job `app`.** O GitHub Actions já define `CI=true`, mas declará-lo deixa explícito que o CRA trata warnings do build como erros e que o `yarn test` não entra em modo interativo. Já se verificou que o build atual compila sem warnings.
 
 ## Risks / Trade-offs
 
