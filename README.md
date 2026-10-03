@@ -6,6 +6,30 @@ Vejá uma prévia aqui: https://zerafilas.now.sh/
 Dashboard: https://zerafilas.now.sh/dashboard
 
 
+## Ambiente de desenvolvimento
+
+O front usa Create React App 3.4.1 (webpack 4), que **só funciona no Node 16**. A versão está fixada no `.nvmrc` e no campo `engines` do `package.json`; em outras versões o `yarn install` recusa com `The engine "node" is incompatible`.
+
+```bash
+nvm install 16 && nvm use   # lê o .nvmrc
+yarn install --frozen-lockfile
+```
+
+Se você realmente precisa usar outro Node, o `engines` também bloqueia `yarn lint`, `yarn test` e `yarn build`; contorne com `yarn --ignore-engines <comando>`. No Node 17+ o build ainda falha com `ERR_OSSL_EVP_UNSUPPORTED`, e aí é preciso `NODE_OPTIONS=--openssl-legacy-provider yarn --ignore-engines build`. O caminho suportado continua sendo o Node 16.
+
+### Verificações
+
+O CI (`.github/workflows/ci.yml`) roda estes comandos a cada push e pull request para `master`:
+
+| Comando | Node | O que verifica |
+|---|---|---|
+| `yarn lint` | 16 | ESLint (airbnb + Prettier) em `src/` |
+| `CI=true yarn test --watchAll=false` | 16 | Testes das telas (Jest + Testing Library) |
+| `yarn build` | 16 | Build de produção (no CI, warnings viram erro) |
+| `openspec validate --all --strict` | 20.19+ | Specs do OpenSpec |
+
+O OpenSpec exige Node 20.19 ou mais novo, por isso roda separado do app. Para rodá-lo localmente, use outro terminal com Node 20.19+ e a CLI instalada (veja a seção abaixo).
+
 ## Desenvolvimento com OpenSpec
 
 O projeto usa o [OpenSpec](https://github.com/Fission-AI/OpenSpec) para desenvolvimento orientado a especificações (spec-driven). As specs e propostas ficam em `openspec/`, e as skills e comandos do Claude Code já estão commitados em `.claude/`.
