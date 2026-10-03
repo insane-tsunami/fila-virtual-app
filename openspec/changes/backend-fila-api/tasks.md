@@ -2,15 +2,15 @@
 
 ## 1. Dependências e esqueleto
 
-- [ ] 1.1 Atualizar `server/composer.json` (`php ^8.3`; `illuminate/database ^13`, `guzzlehttp/guzzle ^8`, `slim/slim ^4`, `slim/psr7 ^1`; `phpunit/phpunit ^12` em desenvolvimento; autoload PSR-4 `Controllers\`, `Models\`, `Services\`, `Middleware\` e `Support\` para `app/*`; scripts `test` e `migrate`) e regenerar o `composer.lock`; verificar com `composer validate --strict` e com `composer install` em um clone limpo (sem `vendor/`) no PHP 8.3, ambos passando
-- [ ] 1.2 Criar `server/phpunit.xml` e um teste de fumaça em `server/tests/`; verificar que `composer test` roda e passa, e que `server/vendor/` continua ignorado pelo Git
-- [ ] 1.3 Converter `server/api/config.php` para retornar um array lido de `getenv` (`DB_*`, `API_KEY`, `CORS_ORIGIN`, com `API_KEY` vazia por padrão) e atualizar `server/.env.example`; verificar com um teste de configuração que passa (variáveis lidas, padrões aplicados, nada de constantes)
+- [x] 1.1 Atualizar `server/composer.json` (`php ^8.3`; `illuminate/database ^13`, `guzzlehttp/guzzle ^8`, `slim/slim ^4`, `slim/psr7 ^1`; `phpunit/phpunit ^12` em desenvolvimento; autoload PSR-4 `Controllers\`, `Models\`, `Services\`, `Middleware\` e `Support\` para `app/*`; scripts `test` e `migrate`) e regenerar o `composer.lock`; verificar com `composer validate --strict` e com `composer install` em um clone limpo (sem `vendor/`) no PHP 8.3, ambos passando
+- [x] 1.2 Criar `server/phpunit.xml` e um teste de fumaça em `server/tests/`; verificar que `composer test` roda e passa, e que `server/vendor/` continua ignorado pelo Git
+- [x] 1.3 Converter `server/api/config.php` para retornar um array lido de `getenv` (`DB_*`, `API_KEY`, `CORS_ORIGIN`, com `API_KEY` vazia por padrão) e atualizar `server/.env.example`; verificar com um teste de configuração que passa (variáveis lidas, padrões aplicados, nada de constantes)
 
 ## 2. Banco e migrações
 
-- [ ] 2.1 Criar `Support\Database`, que monta a conexão a partir do array de configuração (`sqlite` e `mysql`, com chaves estrangeiras ativas); verificar com um teste que conecta em SQLite em memória e executa uma consulta
-- [ ] 2.2 Criar o runner `server/bin/migrate` (tabela `migrations`, execução em ordem) e as migrações `0001` (`estabelecimentos`), `0002` (`entradas_fila`, com `codigo` único e índice por estabelecimento, status e id) e `0003` (estabelecimento de partida `Veste Bem`, slug `veste-bem`); verificar com testes: rodar duas vezes é idempotente, as tabelas e colunas existem, `slug` e `codigo` duplicados são recusados pelo banco
-- [ ] 2.3 Remover `server/_install/zf_line.sql`; verificar que `git grep zf_line` não retorna referências restantes fora de `openspec/`
+- [x] 2.1 Criar `Support\Database`, que monta a conexão a partir do array de configuração (`sqlite` e `mysql`, com chaves estrangeiras ativas); verificar com um teste que conecta em SQLite em memória e executa uma consulta
+- [x] 2.2 Criar o runner `server/bin/migrate` (tabela `migrations`, execução em ordem) e as migrações `0001` (`estabelecimentos`), `0002` (`entradas_fila`, com `codigo` único e índice por estabelecimento, status e id) e `0003` (estabelecimento de partida `Veste Bem`, slug `veste-bem`); verificar com testes: rodar duas vezes é idempotente, as tabelas e colunas existem, `slug` e `codigo` duplicados são recusados pelo banco
+- [x] 2.3 Remover `server/_install/zf_line.sql`; verificar que `git grep zf_line` não retorna referências restantes fora de `openspec/`
 
 ## 3. Regras da fila
 
