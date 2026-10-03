@@ -14,9 +14,9 @@
 
 ## 3. Regras da fila
 
-- [ ] 3.1 Implementar a normalização e a máscara do telefone em `Support`; verificar com testes por tabela cobrindo os cenários de `queue-intake` (`(11) 97177-8203` e `+55 11 97177-8203` viram `5511971778203`, `123` e texto sem dígitos são recusados, 10, 11, 12 e 13 dígitos) e a máscara `*****8203`
-- [ ] 3.2 Criar os modelos `Estabelecimento` e `EntradaFila` e `Services\FilaService::entrar` (transação com `lockForUpdate` no estabelecimento, `em_atendimento` se a fila estiver vazia, telefone ativo repetido devolve a entrada existente, `codigo` com `random_bytes`); verificar com testes dos cenários de entrada, duplicidade, telefone de entrada finalizada e códigos de 16 caracteres ou mais
-- [ ] 3.3 Implementar `posicao`, `listar` e `finalizar` no `FilaService` (posição por `id` entre as ativas, promoção do `aguardando` mais antigo, `409` fora de atendimento, `404` inexistente); verificar com testes dos cenários de avanço de posição, entrada finalizada com posição `null`, finalizar o último, finalização repetida e a invariante de uma única `em_atendimento`
+- [x] 3.1 Implementar a normalização e a máscara do telefone em `Support`; verificar com testes por tabela cobrindo os cenários de `queue-intake` (`(11) 97177-8203` e `+55 11 97177-8203` viram `5511971778203`, `123` e texto sem dígitos são recusados, 10, 11, 12 e 13 dígitos) e a máscara `*****8203`
+- [x] 3.2 Criar os modelos `Estabelecimento` e `EntradaFila` e `Services\FilaService::entrar` (transação com `lockForUpdate` no estabelecimento, `em_atendimento` se a fila estiver vazia, telefone ativo repetido devolve a entrada existente, `codigo` com `random_bytes`); verificar com testes dos cenários de entrada, duplicidade, telefone de entrada finalizada e códigos de 16 caracteres ou mais
+- [x] 3.3 Implementar `posicao`, `listar` e `finalizar` no `FilaService` (posição por `id` entre as ativas, promoção do `aguardando` mais antigo, `409` fora de atendimento, `404` inexistente); verificar com testes dos cenários de avanço de posição, entrada finalizada com posição `null`, finalizar o último, finalização repetida e a invariante de uma única `em_atendimento`
 
 ## 4. API HTTP
 
