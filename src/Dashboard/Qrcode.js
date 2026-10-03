@@ -1,13 +1,13 @@
 import React from 'react';
 
 import { makeStyles } from '@material-ui/core/styles';
-import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
 
 import { FaQrcode } from 'react-icons/fa';
 import {
   Wrapper,
   BarNavigation,
+  BarAvatar,
   Container,
   Content,
   Painel,
@@ -15,6 +15,7 @@ import {
 } from './styles';
 
 import Nav from './Nav';
+import { nome, inicial } from './estabelecimento';
 
 const useStyles = makeStyles(() => ({
   title: {
@@ -30,8 +31,8 @@ export default function QrCode() {
   return (
     <Wrapper>
       <BarNavigation>
-        <Avatar className={classes.large}>V</Avatar>
-        <p>Veste Bem</p>
+        <BarAvatar>{inicial}</BarAvatar>
+        <p>{nome}</p>
         <Nav />
       </BarNavigation>
       <Container>

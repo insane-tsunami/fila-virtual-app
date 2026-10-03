@@ -1,9 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
-import Dashboard from './Dashbboard';
-import QrCode from './Dashbboard/Qrcode';
-import Perfil from './Dashbboard/Perfil';
+import Dashboard from './Dashboard';
+import QrCode from './Dashboard/Qrcode';
+import Perfil from './Dashboard/Perfil';
 import Home from './Home';
 import Login from './Login';
 import Register from './Register';

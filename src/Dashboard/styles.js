@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import Avatar from '@material-ui/core/Avatar';
 
 export const Wrapper = styled.main`
   display: flex;
@@ -11,6 +12,13 @@ export const BarNavigation = styled.div`
   flex: 0 0 230px;
 `;
 
+export const BarAvatar = styled(Avatar)`
+  && {
+    width: 56px;
+    height: 56px;
+  }
+`;
+
 export const Container = styled.div`
   background-color: #12014f;
   width: 100%;
@@ -19,6 +27,12 @@ export const Container = styled.div`
   padding: 40px;
 `;
 
+const clientStatusStyles = {
+  next: 'background: #E10050;',
+  current: 'display: none;',
+  wait: 'background-color: #ffffff;',
+};
+
 export const Client = styled.div`
   border: 1px solid #cccccc;
   padding: 8px;
@@ -26,14 +40,7 @@ export const Client = styled.div`
   display: flex;
   align-items: center;
   margin-bottom: 16px;
-  ${({ status }) =>
-    status === 'next'
-      ? `
-    background: #E10050;
-  `
-      : status === 'current'
-      ? `display: none`
-      : `background-color: #ffffff`}
+  ${({ status }) => clientStatusStyles[status] || clientStatusStyles.wait}
 `;
 
 export const Number = styled.p`

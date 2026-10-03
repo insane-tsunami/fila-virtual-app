@@ -1,15 +1,22 @@
 import React from 'react';
 
 import { makeStyles } from '@material-ui/core/styles';
-import Avatar from '@material-ui/core/Avatar';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import IconButton from '@material-ui/core/IconButton';
 import PhotoCamera from '@material-ui/icons/PhotoCamera';
 
-import { Wrapper, BarNavigation, Container, Content, Painel } from './styles';
+import {
+  Wrapper,
+  BarNavigation,
+  BarAvatar,
+  Container,
+  Content,
+  Painel,
+} from './styles';
 
 import Nav from './Nav';
+import { nome, inicial } from './estabelecimento';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -37,8 +44,8 @@ export default function Perfil() {
   return (
     <Wrapper>
       <BarNavigation>
-        <Avatar className={classes.large}>V</Avatar>
-        <p>Veste Bem</p>
+        <BarAvatar>{inicial}</BarAvatar>
+        <p>{nome}</p>
         <Nav />
       </BarNavigation>
       <Container>
@@ -84,13 +91,13 @@ export default function Perfil() {
                   variant="outlined"
                 />
                 <br />
-                <input
-                  accept="image/*"
-                  className={classes.input}
-                  id="icon-button-file"
-                  type="file"
-                />
                 <label htmlFor="icon-button-file">
+                  <input
+                    accept="image/*"
+                    className={classes.input}
+                    id="icon-button-file"
+                    type="file"
+                  />
                   Imagem de Avatar
                   <IconButton
                     color="primary"
