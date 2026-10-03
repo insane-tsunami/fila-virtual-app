@@ -26,3 +26,5 @@ server/vendor/
 # secrets
 .env
 server/.env
+server/.phpunit.cache/
+server/.phpunit.result.cache
