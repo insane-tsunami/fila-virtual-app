@@ -20,9 +20,9 @@
 
 ## 4. API HTTP
 
-- [ ] 4.1 Criar a fábrica da aplicação Slim, `server/public/index.php`, o tratador de erros em JSON (404, 405, 400 e 500 genérico com `error_log`) e o middleware de CORS; verificar com testes de `api-platform` via `$app->handle()` (rota inexistente em JSON, corpo inválido com `400`, preflight `204` com a origem configurada, nenhum cabeçalho CORS sem ela)
-- [ ] 4.2 Criar os controllers e rotas do cliente (`POST /api/filas/{slug}/entradas` e `GET /api/filas/{slug}/entradas/{codigo}`); verificar com testes ponta a ponta de todos os cenários de `queue-intake` (201 e 200, 404, 422, posição, resposta sem telefone)
-- [ ] 4.3 Criar o middleware da chave `X-API-Key` (`hash_equals`, fechado por padrão) e os controllers do dashboard (`GET /api/filas/{slug}/entradas` e `POST /api/filas/{slug}/entradas/{codigo}/finalizar`); verificar com testes ponta a ponta de todos os cenários de `queue-management` (401 com chave ausente, errada e `API_KEY` não configurada, listagem mascarada e vazia, `409` e `404`, finalização repetida)
+- [x] 4.1 Criar a fábrica da aplicação Slim, `server/public/index.php`, o tratador de erros em JSON (404, 405, 400 e 500 genérico com `error_log`) e o middleware de CORS; verificar com testes de `api-platform` via `$app->handle()` (rota inexistente em JSON, corpo inválido com `400`, preflight `204` com a origem configurada, nenhum cabeçalho CORS sem ela)
+- [x] 4.2 Criar os controllers e rotas do cliente (`POST /api/filas/{slug}/entradas` e `GET /api/filas/{slug}/entradas/{codigo}`); verificar com testes ponta a ponta de todos os cenários de `queue-intake` (201 e 200, 404, 422, posição, resposta sem telefone)
+- [x] 4.3 Criar o middleware da chave `X-API-Key` (`hash_equals`, fechado por padrão) e os controllers do dashboard (`GET /api/filas/{slug}/entradas` e `POST /api/filas/{slug}/entradas/{codigo}/finalizar`); verificar com testes ponta a ponta de todos os cenários de `queue-management` (401 com chave ausente, errada e `API_KEY` não configurada, listagem mascarada e vazia, `409` e `404`, finalização repetida)
 
 ## 5. CI e documentação
 
