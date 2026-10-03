@@ -53,6 +53,6 @@ O endereço MUST ser apenas uma origem: esquema `http` ou `https`, com host e po
 - **THEN** o endereço é gravado como enviado
 
 #### Scenario: Valores recusados
-- **WHEN** o dashboard envia `ftp://loja.exemplo.com`, `loja.exemplo.com`, `javascript:alert(1)`, `https://usuario:senha@loja.exemplo.com`, `https://loja.exemplo.com/caminho`, `https://loja.exemplo.com?a=1`, um texto com mais de 255 caracteres ou um valor que não é texto
+- **WHEN** o dashboard envia `ftp://loja.exemplo.com`, `loja.exemplo.com`, `javascript:alert(1)`, `https://usuario:senha@loja.exemplo.com`, `https://loja.exemplo.com/caminho`, `https://loja.exemplo.com?a=1`, um texto com mais de 255 caracteres, um valor que não é texto ou o corpo sem o campo `endereco_publico`
 - **THEN** a resposta é `422` com uma mensagem de erro
 - **AND** o endereço anterior da loja permanece como estava
