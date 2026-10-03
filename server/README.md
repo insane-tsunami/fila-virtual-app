@@ -34,7 +34,7 @@ Nunca commite valores reais de banco ou de chave.
 php bin/migrate        # ou: composer migrate
 ```
 
-Cria as tabelas `estabelecimentos` e `entradas_fila` e insere o estabelecimento de partida (`Veste Bem`, slug `veste-bem`). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
+Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional) e `entradas_fila` e insere o estabelecimento de partida (`Veste Bem`, slug `veste-bem`). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
 
 > No MySQL, comandos de criação de tabela não são transacionais. Se uma migração falhar no meio, confira a tabela `migrations` e o que foi criado antes de rodar de novo.
 
@@ -68,6 +68,22 @@ Os testes apagam todas as tabelas do banco a cada teste. Por isso eles **recusam
 ## API
 
 Todas as respostas são JSON. Erros têm o formato `{"erro": "mensagem"}`. Exemplos contra `http://localhost:8080`:
+
+**Dados da loja** (público): nome, slug e o endereço público configurado (`null` se ainda não houver). O front usa isso para montar o link do QRCode.
+
+```bash
+curl http://localhost:8080/api/filas/veste-bem
+# {"nome":"Veste Bem","slug":"veste-bem","endereco_publico":null}
+```
+
+**Definir o endereço público da loja** (dashboard, exige `X-API-Key`). Aceita só a **origem** do site (`http`/`https`, host, porta opcional; sem usuário, caminho, query ou fragmento). É normalizado para minúsculas e sem barra final. `null` ou `""` apaga o endereço; o campo ausente é `422`.
+
+```bash
+curl -X PUT http://localhost:8080/api/filas/veste-bem/endereco \
+  -H "X-API-Key: $API_KEY" -H 'Content-Type: application/json' \
+  -d '{"endereco_publico": "https://Loja.Exemplo.com/"}'
+# {"nome":"Veste Bem","slug":"veste-bem","endereco_publico":"https://loja.exemplo.com"}
+```
 
 **Entrar na fila** (público): `201` com a nova entrada, ou `200` com a entrada existente se o telefone já estiver na fila.
 
@@ -107,10 +123,10 @@ curl -X POST http://localhost:8080/api/filas/veste-bem/entradas/9f3c.../finaliza
 | `404` | Rota, estabelecimento ou entrada inexistente |
 | `405` | Método não permitido |
 | `409` | Finalizar uma entrada que não está em atendimento |
-| `422` | Telefone inválido (de 10 a 13 dígitos; o DDI `55` é acrescentado se faltar) |
+| `422` | Telefone inválido (de 10 a 13 dígitos; o DDI `55` é acrescentado se faltar) ou endereço público inválido/ausente |
 | `500` | Erro inesperado (mensagem genérica; os detalhes vão para o `error_log`) |
 
-O comportamento completo está especificado em [`openspec/specs/`](../openspec/specs) (`queue-intake`, `queue-management` e `api-platform`).
+O comportamento completo está especificado em [`openspec/specs/`](../openspec/specs) (`queue-intake`, `queue-management`, `store-address` e `api-platform`).
 
 ## Estrutura
 
@@ -118,11 +134,11 @@ O comportamento completo está especificado em [`openspec/specs/`](../openspec/s
 server/
   public/            front controller (index.php) e .htaccess para Apache
   api/config.php     lê as variáveis de ambiente e devolve um array
-  app/controllers/   ClienteController e DashboardController
-  app/services/      FilaService (regras da fila) e exceções de domínio
+  app/controllers/   ClienteController, DashboardController e LojaController
+  app/services/      FilaService (regras da fila), LojaService (endereço da loja) e exceções de domínio
   app/models/        Estabelecimento e EntradaFila
   app/middleware/    Cors e ChaveDeApi
-  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, Json
+  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Json
   database/migrations/
   bin/migrate        runner de migrações
   tests/
