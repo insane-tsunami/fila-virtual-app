@@ -1,0 +1,4 @@
+# Hospedagem com Apache: manda tudo que não for arquivo para o front controller.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

@@ -46,3 +46,81 @@ jobs:
           node-version: 22
 
       - run: npx --yes @fission-ai/openspec@1.14.0 validate --all --strict
+
+  api:
+    name: API (PHP 8.3, SQLite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite
+          coverage: none
+          tools: composer:v2
+
+      - id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('server/composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer validate --strict
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: composer test
+
+  api-mysql:
+    name: API (PHP 8.3, MySQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    # A produção será MySQL; esta execução pega diferenças que o SQLite esconde.
+    # O banco existe só durante o job, então a senha abaixo não protege nada real.
+    env:
+      DB_DRIVER: mysql
+      DB_HOST: 127.0.0.1
+      DB_NAME: zerafilas_test
+      DB_USER: root
+      DB_PASS: raiz-de-teste
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: raiz-de-teste
+          MYSQL_DATABASE: zerafilas_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -praiz-de-teste"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('server/composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: composer test

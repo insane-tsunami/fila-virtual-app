@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Support\Database;
+use Support\Migrator;
+
+$config = require __DIR__ . '/../api/config.php';
+
+try {
+    $executed = (new Migrator(Database::connect($config['db']), __DIR__ . '/../database/migrations'))->run();
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Falha na migração: ' . $e->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+echo $executed === []
+    ? 'Nada a migrar.' . PHP_EOL
+    : 'Migrações executadas: ' . implode(', ', $executed) . PHP_EOL;
