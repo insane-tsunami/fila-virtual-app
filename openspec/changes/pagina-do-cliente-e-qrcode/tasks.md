@@ -21,8 +21,8 @@
 
 ## 4. Front: QR code da loja
 
-- [ ] 4.1 Adicionar `qrcode.react@^4.2.0` ao `package.json` e ao `yarn.lock`; verificar com `yarn install --frozen-lockfile`, `yarn build` e os testes no Node 16, e que o workflow de CI continua compatível (sem mudanças nele)
-- [ ] 4.2 Reescrever `src/Dashboard/Qrcode.js`: o botão "Gerar QRCode" busca os dados da loja, monta `<endereço ou origem do front>/fila/<slug>`, desenha o QR e mostra a URL, com a mensagem de falha e nova tentativa; trocar em `src/Dashboard/Qrcode.test.js` o teste do estado antigo pelos cenários novos de `qrcode-generation` (com e sem endereço configurado, conteúdo do QR igual à URL mostrada usando a biblioteca simulada, falha da API e nova tentativa); verificar com os testes passando e o teste de título e botão ainda verde
+- [x] 4.1 Adicionar `qrcode.react@^4.2.0` ao `package.json` e ao `yarn.lock`; verificar com `yarn install --frozen-lockfile`, `yarn build` e os testes no Node 16, e que o workflow de CI continua compatível (sem mudanças nele)
+- [x] 4.2 Reescrever `src/Dashboard/Qrcode.js`: o botão "Gerar QRCode" busca os dados da loja, monta `<endereço ou origem do front>/fila/<slug>`, desenha o QR e mostra a URL, com a mensagem de falha e nova tentativa; trocar em `src/Dashboard/Qrcode.test.js` o teste do estado antigo pelos cenários novos de `qrcode-generation` (com e sem endereço configurado, conteúdo do QR igual à URL mostrada usando a biblioteca simulada, falha da API e nova tentativa); verificar com os testes passando e o teste de título e botão ainda verde
 
 ## 5. Contexto e documentação
 

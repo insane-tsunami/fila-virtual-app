@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
 
+import { QRCodeSVG } from 'qrcode.react';
 import { FaQrcode } from 'react-icons/fa';
 import {
   Wrapper,
@@ -15,7 +16,8 @@ import {
 } from './styles';
 
 import Nav from './Nav';
-import { nome, inicial } from './estabelecimento';
+import { buscarLoja } from '../api';
+import { nome, inicial, slug } from './estabelecimento';
 
 const useStyles = makeStyles(() => ({
   title: {
@@ -24,10 +26,47 @@ const useStyles = makeStyles(() => ({
     color: '#ffffff',
     marginBottom: 32,
   },
+  aviso: {
+    color: '#ffffff',
+    marginTop: 16,
+  },
+  resultado: {
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  qr: {
+    display: 'inline-block',
+    padding: 8,
+    background: '#ffffff',
+  },
+  link: {
+    color: '#ffffff',
+    marginTop: 8,
+    wordBreak: 'break-all',
+  },
 }));
 
 export default function QrCode() {
   const classes = useStyles();
+  const [url, setUrl] = useState('');
+  const [erro, setErro] = useState(false);
+  const [gerando, setGerando] = useState(false);
+
+  const gerar = async () => {
+    setGerando(true);
+    setErro(false);
+    try {
+      const loja = await buscarLoja(slug);
+      const base = loja.endereco_publico || window.location.origin;
+      setUrl(`${base}/fila/${slug}`);
+    } catch (e) {
+      setUrl('');
+      setErro(true);
+    } finally {
+      setGerando(false);
+    }
+  };
+
   return (
     <Wrapper>
       <BarNavigation>
@@ -39,12 +78,25 @@ export default function QrCode() {
         <h1 className={classes.title}>Gerar QRCode</h1>
         <Content>
           <Painel>
-            <InAttendance onClick={() => {}}>
+            <InAttendance onClick={gerando ? undefined : gerar}>
               <FaQrcode size="72" />
               <Typography variant="overline" display="block">
                 Gerar QRCode
               </Typography>
             </InAttendance>
+            {erro && (
+              <Typography role="alert" className={classes.aviso}>
+                Não foi possível gerar o QR code. Tente de novo.
+              </Typography>
+            )}
+            {url && (
+              <div className={classes.resultado}>
+                <div className={classes.qr}>
+                  <QRCodeSVG value={url} size={220} includeMargin />
+                </div>
+                <Typography className={classes.link}>{url}</Typography>
+              </div>
+            )}
           </Painel>
         </Content>
       </Container>
