@@ -14,4 +14,4 @@
 ## 3. Integração
 
 - [x] 3.1 Rodar `openspec validate ci-e-testes-minimos --strict`; verificar que a validação passa
-- [ ] 3.2 Publicar a branch e abrir o PR (quando o usuário pedir) e verificar nas check runs do GitHub que os jobs `app` e `specs` terminam em sucesso no primeiro run real; se falharem, corrigir o workflow e repetir até ficarem verdes
+- [x] 3.2 Publicar a branch e abrir o PR (quando o usuário pedir) e verificar nas check runs do GitHub que os jobs `app` e `specs` terminam em sucesso no primeiro run real; se falharem, corrigir o workflow e repetir até ficarem verdes
