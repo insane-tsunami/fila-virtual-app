@@ -10,8 +10,8 @@
 
 ## 2. Front: base de comunicação
 
-- [ ] 2.1 Criar `src/api.js` (base por `REACT_APP_API_URL`, `ApiError` com `status` e mensagem, `buscarLoja`, `entrarNaFila` e `consultarEntrada`) e acrescentar `slug` a `src/Dashboard/estabelecimento.js`; verificar com testes de `fetch` simulado: sucesso, `422` e `404` com a mensagem do JSON, falha de rede com `status` 0, corpo que não é JSON, e que a base vazia usa a mesma origem
-- [ ] 2.2 Criar o `.env.example` do front e documentar no `README.md` a variável `REACT_APP_API_URL`, o desenvolvimento local (API na porta 8080 com `CORS_ORIGIN=http://localhost:3000`), o aviso de HTTPS em produção e o requisito de a hospedagem servir o `index.html` para qualquer caminho; verificar com `yarn build` no Node 16, conferindo no pacote gerado que o valor de `REACT_APP_API_URL` foi gravado
+- [x] 2.1 Criar `src/api.js` (base por `REACT_APP_API_URL`, `ApiError` com `status` e mensagem, `buscarLoja`, `entrarNaFila` e `consultarEntrada`) e acrescentar `slug` a `src/Dashboard/estabelecimento.js`; verificar com testes de `fetch` simulado: sucesso, `422` e `404` com a mensagem do JSON, falha de rede com `status` 0, corpo que não é JSON, e que a base vazia usa a mesma origem
+- [x] 2.2 Criar o `.env.example` do front e documentar no `README.md` a variável `REACT_APP_API_URL`, o desenvolvimento local (API na porta 8080 com `CORS_ORIGIN=http://localhost:3000`), o aviso de HTTPS em produção e o requisito de a hospedagem servir o `index.html` para qualquer caminho; verificar com `yarn build` no Node 16, conferindo no pacote gerado que o valor de `REACT_APP_API_URL` foi gravado
 
 ## 3. Front: página pública do cliente
 

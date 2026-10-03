@@ -17,6 +17,16 @@ yarn install --frozen-lockfile
 
 Se você realmente precisa usar outro Node, o `engines` também bloqueia `yarn lint`, `yarn test` e `yarn build`; contorne com `yarn --ignore-engines <comando>`. No Node 17+ o build ainda falha com `ERR_OSSL_EVP_UNSUPPORTED`, e aí é preciso `NODE_OPTIONS=--openssl-legacy-provider yarn --ignore-engines build`. O caminho suportado continua sendo o Node 16.
 
+### Falar com a API
+
+O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` e geração do QRCode). O endereço vem de `REACT_APP_API_URL`, **gravada no pacote na hora do build** (mudou o valor, rode `yarn build` de novo). O modelo está em [`.env.example`](.env.example).
+
+- **Desenvolvimento local:** copie `.env.example` para `.env.local`, rode a API na porta 8080 com `CORS_ORIGIN=http://localhost:3000` (veja o [`server/README.md`](server/README.md)) e `yarn start`.
+- **Mesma origem:** deixe `REACT_APP_API_URL` vazia se um proxy encaminha `/api` para o PHP; assim não há CORS.
+- **Produção:** use HTTPS na API; um site em HTTPS não consegue chamar uma API em HTTP.
+- **Rotas do front:** a hospedagem precisa devolver o `index.html` para qualquer caminho (por exemplo `/fila/veste-bem`), senão o link do QRCode dá 404 ao abrir direto.
+- **Nunca** coloque a `X-API-Key` em variável `REACT_APP_*`: ela iria para o navegador de todos.
+
 ### Verificações
 
 O CI (`.github/workflows/ci.yml`) roda estes comandos a cada push e pull request para `master`:
