@@ -26,7 +26,7 @@
 
 ## 5. Contexto e documentação
 
-- [ ] 5.1 Atualizar o contexto de `openspec/config.yaml` (rota pública `/fila/:slug`, as chamadas novas da API e o front que agora consome a API na página do cliente e no QR); verificar com `openspec validate --all --strict`
+- [x] 5.1 Atualizar o contexto de `openspec/config.yaml` (rota pública `/fila/:slug`, as chamadas novas da API e o front que agora consome a API na página do cliente e no QR); verificar com `openspec validate --all --strict`
 
 ## 6. Integração
 

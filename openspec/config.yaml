@@ -9,14 +9,18 @@ context: |
   para estabelecimentos atenderem clientes sem aglomeração.
   Front-end: React 16 (Create React App 3.4.1), Material-UI v4, styled-components,
   react-router v5. Rotas: /, /cadastro, /login, /dashboard, /dashboard/qrcode,
-  /dashboard/perfil.
+  /dashboard/perfil e a rota pública /fila/:slug (página do cliente, sem login).
   Backend (server/): PHP 8.3+ com Composer (Slim 4, illuminate/database, guzzle),
-  MySQL em produção e SQLite nos testes. Tabelas estabelecimentos e entradas_fila
-  (migrações em server/database/migrations). API em /api/filas/{slug}/entradas
-  (specs queue-intake, queue-management e api-platform); as rotas do dashboard
-  usam uma chave provisória (X-API-Key). Sem login e sem multi-loja.
-  Estado atual: o front ainda usa dados fictícios e não consome a API (isso é
-  trabalho de mudanças futuras). Node 16 fixado para o front.
+  MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (com o
+  endereco_publico de cada loja) e entradas_fila (migrações em
+  server/database/migrations). API: GET /api/filas/{slug} (público),
+  PUT /api/filas/{slug}/endereco (chave) e /api/filas/{slug}/entradas
+  (specs queue-intake, queue-management, store-address e api-platform); as rotas
+  do dashboard usam uma chave provisória (X-API-Key). Sem login e sem multi-loja.
+  Estado atual: a página do cliente (/fila/:slug, spec customer-queue-page) e o
+  QR code do dashboard (qrcode-generation) consomem a API por src/api.js, com a
+  base em REACT_APP_API_URL; o restante do dashboard (fila, perfil) ainda usa
+  dados fictícios. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.
