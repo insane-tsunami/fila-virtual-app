@@ -6,7 +6,7 @@ A API da fila existe, mas ninguém a usa: o cliente não tem onde entrar na fila
 
 ## What Changes
 
-**Suposição a confirmar antes do apply.** Entendi "endereço configurável por loja" assim: cada estabelecimento tem um **endereço público próprio guardado no banco** (a base da URL em que o front dele está publicado); o QR code codifica `<endereço da loja>/fila/<slug>`; se a loja ainda não configurou, o padrão é a origem do próprio front (`window.location.origin`), sem variável de ambiente global. Se a intenção era outra (por exemplo, só o `slug` variar por loja, sobre uma base global), o escopo do backend abaixo cai pela metade.
+**Decisão confirmada pelo usuário.** Entendi "endereço configurável por loja" assim: cada estabelecimento tem um **endereço público próprio guardado no banco** (a base da URL em que o front dele está publicado); o QR code codifica `<endereço da loja>/fila/<slug>`; se a loja ainda não configurou, o padrão é a origem do próprio front (`window.location.origin`), sem variável de ambiente global. O usuário confirmou esta interpretação e também que o QR code é gerado **ao acionar o botão** "Gerar QRCode", e não ao abrir a página.
 
 **Backend (`server/`)**
 - Nova coluna opcional `endereco_publico` em `estabelecimentos` (migração).
