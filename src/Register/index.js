@@ -47,6 +47,10 @@ export default function Register() {
   const mudar = (campo) => (evento) =>
     setCampos({ ...campos, [campo]: evento.target.value });
 
+  // O CNPJ pode ter letras (formato alfanumérico) e é sempre guardado em maiúsculas.
+  const mudarCnpj = (evento) =>
+    setCampos({ ...campos, cnpj: evento.target.value.toUpperCase() });
+
   async function enviar(evento) {
     evento.preventDefault();
     if (campos.senha !== campos.confirmacao) {
@@ -106,7 +110,7 @@ export default function Register() {
                   autoComplete=""
                   variant="outlined"
                   value={campos.cnpj}
-                  onChange={mudar('cnpj')}
+                  onChange={mudarCnpj}
                 />
                 <TextField
                   id="outlined-nome-input"

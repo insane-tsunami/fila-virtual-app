@@ -35,8 +35,13 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// XX.XXX.XXX/XXXX-DD (as 12 primeiras posições aceitam letras; um valor que não
+// casa com o formato é mostrado como veio).
 const mascararCnpj = (cnpj) =>
-  cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  cnpj.replace(
+    /^([0-9A-Z]{2})([0-9A-Z]{3})([0-9A-Z]{3})([0-9A-Z]{4})([0-9]{2})$/,
+    '$1.$2.$3/$4-$5'
+  );
 
 export default function Perfil() {
   const classes = useStyles();

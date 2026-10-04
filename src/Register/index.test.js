@@ -179,6 +179,53 @@ describe('Cadastro do estabelecimento', () => {
     expect(u.getByLabelText('CNPJ')).toBeInTheDocument();
   });
 
+  it('CNPJ digitado em minúsculas aparece em maiúsculas no campo', async () => {
+    const u = renderRegister();
+    await esvaziar();
+
+    fireEvent.change(u.getByLabelText('CNPJ'), {
+      target: { value: '12.abc.345/01de-35' },
+    });
+
+    expect(u.getByLabelText('CNPJ').value).toBe('12.ABC.345/01DE-35');
+  });
+
+  it('CNPJ colado em minúsculas é enviado em maiúsculas', async () => {
+    api.cadastrar.mockResolvedValue(SESSAO);
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u, { CNPJ: '12abc34501de35' });
+    expect(u.getByLabelText('CNPJ').value).toBe('12ABC34501DE35');
+    await enviar(u);
+
+    expect(api.cadastrar).toHaveBeenCalledWith(
+      expect.objectContaining({ cnpj: '12ABC34501DE35' })
+    );
+  });
+
+  it('dígito verificador errado (422): mostra a mensagem da API e mantém o CNPJ', async () => {
+    api.cadastrar.mockRejectedValue(
+      new api.ApiError(
+        422,
+        'CNPJ inválido: confira os caracteres e os dígitos verificadores.'
+      )
+    );
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u, { CNPJ: '12ABC34501DE36' });
+    await enviar(u);
+
+    expect(
+      u.getByText(
+        'CNPJ inválido: confira os caracteres e os dígitos verificadores.'
+      )
+    ).toBeInTheDocument();
+    expect(u.getByLabelText('CNPJ').value).toBe('12ABC34501DE36');
+    expect(u.getByLabelText('Nome do estabelecimento')).toBeInTheDocument();
+  });
+
   it('API fora do ar: mensagem fixa e campos mantidos', async () => {
     api.cadastrar.mockRejectedValue(new api.ApiError(0, 'rede'));
     const u = renderRegister();
