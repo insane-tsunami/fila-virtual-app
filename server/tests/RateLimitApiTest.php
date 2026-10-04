@@ -16,16 +16,20 @@ final class RateLimitApiTest extends ApiTestCase
     private array $limites = [
         'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
         'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
+        'esqueci_email' => 3, 'esqueci_ip' => 10, 'esqueci_janela_minutos' => 60, 'redefinir_ip' => 20,
     ];
 
     /** @var list<string> */
     private array $proxies = [];
+
+    private MailerEmMemoria $mailer;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->enderecoRemoto = '198.51.100.7';
         $this->proxies = [];
+        $this->mailer = new MailerEmMemoria();
     }
 
     /**
@@ -37,6 +41,8 @@ final class RateLimitApiTest extends ApiTestCase
         return $this->chamar($metodo, $uri, $corpo, $cabecalhos, [
             'rate_limit' => $this->limites,
             'trusted_proxies' => $this->proxies,
+            'mailer' => $this->mailer,
+            'app_url' => 'https://app.exemplo.com',
         ]);
     }
 
@@ -402,5 +408,139 @@ final class RateLimitApiTest extends ApiTestCase
 
         $this->assertSame([401, 401, 429], [$de('203.0.113.1'), $de('203.0.113.1'), $de('203.0.113.1')]);
         $this->assertSame(401, $de('203.0.113.2'), 'outro cliente atrás do mesmo proxy');
+    }
+
+    // --- "Esqueci a senha" ------------------------------------------------------------------
+
+    private function pedirRedefinicao(string $email): ResponseInterface
+    {
+        return $this->api('POST', '/api/senha/esqueci', ['email' => $email]);
+    }
+
+    private function redefinir(?string $token, string $senha = 'senha-nova-22'): ResponseInterface
+    {
+        return $this->api('POST', '/api/senha/redefinir', ['token' => $token, 'nova_senha' => $senha]);
+    }
+
+    public function testQuartoPedidoDoMesmoEmailNaHoraEBloqueadoSemEnviarEmail(): void
+    {
+        $this->conta();
+        $status = [];
+        for ($i = 0; $i < 4; $i++) {
+            $status[] = $this->pedirRedefinicao(self::EMAIL)->getStatusCode();
+        }
+
+        $this->assertSame([202, 202, 202, 429], $status);
+        $this->assertCount(3, $this->mailer->enviados, 'o quarto pedido não envia e-mail');
+    }
+
+    public function testEmailSemContaBloqueiaNoMesmoPontoQueUmExistente(): void
+    {
+        $this->conta();
+        $existente = $desconhecido = [];
+        for ($i = 0; $i < 4; $i++) {
+            $existente[] = $this->pedirRedefinicao(self::EMAIL);
+            $desconhecido[] = $this->pedirRedefinicao('ninguem@exemplo.com');
+        }
+
+        $this->assertSame([202, 202, 202, 429], array_map(fn ($r) => $r->getStatusCode(), $existente));
+        $this->assertSame([202, 202, 202, 429], array_map(fn ($r) => $r->getStatusCode(), $desconhecido));
+        $this->assertSame((string) $existente[3]->getBody(), (string) $desconhecido[3]->getBody());
+        $this->assertSame($existente[3]->getHeaders(), $desconhecido[3]->getHeaders());
+    }
+
+    public function testMuitosPedidosDoMesmoIpBloqueiamOIp(): void
+    {
+        $this->limites['esqueci_ip'] = 10;
+        for ($i = 0; $i < 10; $i++) {
+            $this->assertSame(202, $this->pedirRedefinicao("pessoa$i@exemplo.com")->getStatusCode());
+        }
+
+        $this->assertSame(429, $this->pedirRedefinicao('outra@exemplo.com')->getStatusCode());
+
+        $this->enderecoRemoto = '203.0.113.50';
+        $this->assertSame(202, $this->pedirRedefinicao('outra@exemplo.com')->getStatusCode(), 'outro IP segue livre');
+    }
+
+    public function testFormatoDoBloqueioDoPedido(): void
+    {
+        $this->limites['esqueci_email'] = 1;
+        $this->pedirRedefinicao(self::EMAIL);
+
+        $resposta = $this->pedirRedefinicao(self::EMAIL);
+        $segundos = (int) $resposta->getHeaderLine('Retry-After');
+
+        $this->assertSame(429, $resposta->getStatusCode());
+        $this->assertGreaterThan(0, $segundos);
+        $this->assertLessThanOrEqual(3600, $segundos);
+        $this->assertSame('Muitas tentativas. Tente de novo em 60 minutos.', $this->json($resposta)['erro']);
+    }
+
+    public function testEmailInvalidoNaoContaNoLimiteDoPedido(): void
+    {
+        $this->limites['esqueci_ip'] = 2;
+        for ($i = 0; $i < 4; $i++) {
+            $this->assertSame(422, $this->api('POST', '/api/senha/esqueci', ['email' => 'sem-arroba'])->getStatusCode());
+        }
+
+        $this->assertSame(0, $this->db->table('limites_tentativas')->count());
+        $this->assertSame(202, $this->pedirRedefinicao(self::EMAIL)->getStatusCode());
+    }
+
+    public function testLimiteDoPedidoConfiguradoValeNoSegundoPedido(): void
+    {
+        $this->limites['esqueci_email'] = 1;
+
+        $this->assertSame(202, $this->pedirRedefinicao(self::EMAIL)->getStatusCode());
+        $this->assertSame(429, $this->pedirRedefinicao(self::EMAIL)->getStatusCode());
+    }
+
+    public function testVigesimoPrimeiroTokenInvalidoBloqueiaMesmoComTokenValido(): void
+    {
+        $this->conta();
+        $this->limites['redefinir_ip'] = 3;
+        $this->pedirRedefinicao(self::EMAIL);
+        $valido = $this->mailer->ultimoToken();
+        for ($i = 0; $i < 3; $i++) {
+            $this->assertSame(422, $this->redefinir(str_repeat('f', 64))->getStatusCode());
+        }
+
+        $this->assertSame(429, $this->redefinir($valido)->getStatusCode());
+        $this->assertSame(200, $this->login(self::EMAIL, self::SENHA)->getStatusCode(), 'a senha não mudou');
+    }
+
+    public function testSenhaInvalidaNaoContaNoLimiteDaRedefinicao(): void
+    {
+        $this->conta();
+        $this->limites['redefinir_ip'] = 2;
+        $this->pedirRedefinicao(self::EMAIL);
+        $token = $this->mailer->ultimoToken();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->assertSame(422, $this->redefinir($token, 'curta')->getStatusCode());
+        }
+
+        $this->assertSame(200, $this->redefinir($token)->getStatusCode());
+    }
+
+    public function testRedefinicaoConcluidaNaoContaNoLimite(): void
+    {
+        $this->conta();
+        $this->limites['redefinir_ip'] = 1;
+        $this->pedirRedefinicao(self::EMAIL);
+
+        $this->assertSame(200, $this->redefinir($this->mailer->ultimoToken())->getStatusCode());
+        $this->assertSame(0, $this->db->table('limites_tentativas')->where('escopo', 'redefinir_ip')->count());
+    }
+
+    public function testBloqueioDaRedefinicaoNaoAfetaOutroIp(): void
+    {
+        $this->limites['redefinir_ip'] = 1;
+        $this->redefinir(str_repeat('f', 64));
+        $this->assertSame(429, $this->redefinir(str_repeat('f', 64))->getStatusCode());
+
+        $this->enderecoRemoto = '203.0.113.50';
+
+        $this->assertSame(422, $this->redefinir(str_repeat('f', 64))->getStatusCode());
     }
 }

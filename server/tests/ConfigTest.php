@@ -11,7 +11,9 @@ final class ConfigTest extends TestCase
 {
     private const VARIAVEIS = ['DB_DRIVER', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'API_KEY', 'CORS_ORIGIN',
         'RATE_LIMIT_LOGIN_EMAIL', 'RATE_LIMIT_LOGIN_IP', 'RATE_LIMIT_SENHA_CONTA', 'RATE_LIMIT_JANELA_MIN',
-        'RATE_LIMIT_CADASTRO_IP', 'RATE_LIMIT_CADASTRO_JANELA_MIN', 'TRUSTED_PROXIES'];
+        'RATE_LIMIT_CADASTRO_IP', 'RATE_LIMIT_CADASTRO_JANELA_MIN', 'TRUSTED_PROXIES',
+        'APP_URL', 'MAIL_DRIVER', 'MAIL_DSN', 'MAIL_FROM',
+        'RATE_LIMIT_ESQUECI_EMAIL', 'RATE_LIMIT_ESQUECI_IP', 'RATE_LIMIT_ESQUECI_JANELA_MIN', 'RATE_LIMIT_REDEFINIR_IP'];
 
     /** @var array<string, string|false> */
     private array $original = [];
@@ -83,6 +85,7 @@ final class ConfigTest extends TestCase
         $this->assertSame([
             'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
             'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
+            'esqueci_email' => 3, 'esqueci_ip' => 10, 'esqueci_janela_minutos' => 60, 'redefinir_ip' => 20,
         ], $config['rate_limit']);
         $this->assertSame([], $config['trusted_proxies']);
     }
@@ -91,6 +94,8 @@ final class ConfigTest extends TestCase
     {
         putenv('RATE_LIMIT_LOGIN_EMAIL=3');
         putenv('RATE_LIMIT_CADASTRO_JANELA_MIN=30');
+        putenv('RATE_LIMIT_ESQUECI_EMAIL=1');
+        putenv('RATE_LIMIT_ESQUECI_JANELA_MIN=10');
         putenv('TRUSTED_PROXIES= 10.0.0.1 , 192.168.0.0/16,,');
 
         $config = $this->carregar();
@@ -98,6 +103,9 @@ final class ConfigTest extends TestCase
         $this->assertSame(3, $config['rate_limit']['login_email']);
         $this->assertSame(30, $config['rate_limit']['cadastro_janela_minutos']);
         $this->assertSame(20, $config['rate_limit']['login_ip']);
+        $this->assertSame(1, $config['rate_limit']['esqueci_email']);
+        $this->assertSame(10, $config['rate_limit']['esqueci_janela_minutos']);
+        $this->assertSame(10, $config['rate_limit']['esqueci_ip']);
         $this->assertSame(['10.0.0.1', '192.168.0.0/16'], $config['trusted_proxies']);
     }
 
@@ -112,11 +120,42 @@ final class ConfigTest extends TestCase
     {
         putenv('RATE_LIMIT_LOGIN_EMAIL=' . $valor);
         putenv('RATE_LIMIT_JANELA_MIN=' . $valor);
+        putenv('RATE_LIMIT_ESQUECI_EMAIL=' . $valor);
+        putenv('RATE_LIMIT_ESQUECI_JANELA_MIN=' . $valor);
+        putenv('RATE_LIMIT_REDEFINIR_IP=' . $valor);
 
         $config = $this->carregar();
 
         $this->assertSame(5, $config['rate_limit']['login_email']);
         $this->assertSame(15, $config['rate_limit']['janela_minutos']);
+        $this->assertSame(3, $config['rate_limit']['esqueci_email']);
+        $this->assertSame(60, $config['rate_limit']['esqueci_janela_minutos']);
+        $this->assertSame(20, $config['rate_limit']['redefinir_ip']);
+    }
+
+    public function testEmailEAppUrlTemPadroes(): void
+    {
+        $config = $this->carregar();
+
+        $this->assertSame('', $config['app_url']);
+        $this->assertSame(['driver' => 'desligado', 'dsn' => '', 'from' => ''], $config['mail']);
+    }
+
+    public function testEmailEAppUrlLemOAmbiente(): void
+    {
+        putenv('APP_URL=https://app.exemplo.com/');
+        putenv('MAIL_DRIVER=smtp');
+        putenv('MAIL_DSN=smtp://u:p@smtp.exemplo.com:587');
+        putenv('MAIL_FROM=ZeraFilas <nao-responda@exemplo.com>');
+
+        $config = $this->carregar();
+
+        $this->assertSame('https://app.exemplo.com', $config['app_url'], 'sem a barra final');
+        $this->assertSame([
+            'driver' => 'smtp',
+            'dsn' => 'smtp://u:p@smtp.exemplo.com:587',
+            'from' => 'ZeraFilas <nao-responda@exemplo.com>',
+        ], $config['mail']);
     }
 
     public function testNaoDefineConstantesGlobais(): void

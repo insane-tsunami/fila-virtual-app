@@ -25,6 +25,7 @@ final class MigrationTest extends DatabaseTestCase
             '0004_add_endereco_publico_to_estabelecimentos',
             '0005_create_contas_e_sessoes',
             '0006_create_limites_tentativas',
+            '0007_create_redefinicoes_senha',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -62,6 +63,23 @@ final class MigrationTest extends DatabaseTestCase
 
         $this->expectException(QueryException::class);
         $tabela->insert($linha);
+    }
+
+    public function testCriaATabelaDeRedefinicoesDeSenhaComUmTokenPorConta(): void
+    {
+        $this->migrate();
+        $this->assertTrue($this->db->schema()->hasColumns(
+            'redefinicoes_senha',
+            ['id', 'conta_id', 'token_hash', 'criado_em', 'expira_em']
+        ));
+        $contaId = $this->db->table('contas')->insertGetId([
+            'email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'senha_hash' => 'x', 'criado_em' => '2030-01-01 00:00:00',
+        ]);
+        $linha = ['conta_id' => $contaId, 'token_hash' => str_repeat('a', 64), 'criado_em' => '2030-01-01 00:00:00', 'expira_em' => '2030-01-01 01:00:00'];
+        $this->db->table('redefinicoes_senha')->insert($linha);
+
+        $this->expectException(QueryException::class);
+        $this->db->table('redefinicoes_senha')->insert(['token_hash' => str_repeat('b', 64)] + $linha);
     }
 
     public function testCriaAsTabelasDeContasESessoes(): void
@@ -177,7 +195,7 @@ final class MigrationTest extends DatabaseTestCase
 
         $executadas = $this->migrator()->run();
 
-        $this->assertSame(['0005_create_contas_e_sessoes', '0006_create_limites_tentativas'], $executadas);
+        $this->assertSame(['0005_create_contas_e_sessoes', '0006_create_limites_tentativas', '0007_create_redefinicoes_senha'], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
         $this->assertNull($loja->conta_id);
         $this->assertSame('https://loja.exemplo.com', $loja->endereco_publico);
@@ -203,6 +221,7 @@ final class MigrationTest extends DatabaseTestCase
             '0004_add_endereco_publico_to_estabelecimentos',
             '0005_create_contas_e_sessoes',
             '0006_create_limites_tentativas',
+            '0007_create_redefinicoes_senha',
         ], $executadas);
         $this->assertSame(2, $this->db->table('estabelecimentos')->count(), 'as linhas existentes continuam');
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'outra-loja')->value('endereco_publico'));

@@ -19,6 +19,9 @@ final class LimiteDeTentativas
     public const LOGIN_IP = 'login_ip';
     public const CADASTRO_IP = 'cadastro_ip';
     public const SENHA_CONTA = 'senha_conta';
+    public const ESQUECI_EMAIL = 'esqueci_email';
+    public const ESQUECI_IP = 'esqueci_ip';
+    public const REDEFINIR_IP = 'redefinir_ip';
 
     /** @var callable(Throwable): void */
     private $logger;
@@ -49,6 +52,9 @@ final class LimiteDeTentativas
             self::LOGIN_IP => ['max' => $config['login_ip'], 'janela' => $janela],
             self::SENHA_CONTA => ['max' => $config['senha_conta'], 'janela' => $janela],
             self::CADASTRO_IP => ['max' => $config['cadastro_ip'], 'janela' => $config['cadastro_janela_minutos'] * 60],
+            self::ESQUECI_EMAIL => ['max' => $config['esqueci_email'], 'janela' => $config['esqueci_janela_minutos'] * 60],
+            self::ESQUECI_IP => ['max' => $config['esqueci_ip'], 'janela' => $config['esqueci_janela_minutos'] * 60],
+            self::REDEFINIR_IP => ['max' => $config['redefinir_ip'], 'janela' => $janela],
         ], $logger);
     }
 

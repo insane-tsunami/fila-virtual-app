@@ -58,9 +58,7 @@ final class ContaService
             ?? throw new DadosInvalidosException('O nome do estabelecimento precisa ter letras ou números.');
         $senha = $corpo['senha'];
         if (!Senha::valida($senha)) {
-            throw new DadosInvalidosException(
-                'Senha inválida: use de 8 a 72 caracteres (letras acentuadas contam como 2).'
-            );
+            throw new DadosInvalidosException(Senha::MENSAGEM_INVALIDA);
         }
 
         return Capsule::connection()->transaction(function () use ($email, $cnpj, $nome, $base, $senha): array {
@@ -124,9 +122,7 @@ final class ContaService
             throw new DadosInvalidosException('Senha atual incorreta.');
         }
         if (!Senha::valida($nova)) {
-            throw new DadosInvalidosException(
-                'Senha inválida: use de 8 a 72 caracteres (letras acentuadas contam como 2).'
-            );
+            throw new DadosInvalidosException(Senha::MENSAGEM_INVALIDA);
         }
 
         Capsule::connection()->transaction(function () use ($conta, $sessaoId, $nova): void {

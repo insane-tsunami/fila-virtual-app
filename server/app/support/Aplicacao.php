@@ -8,6 +8,7 @@ use Controllers\ClienteController;
 use Controllers\ContaController;
 use Controllers\DashboardController;
 use Controllers\LojaController;
+use Controllers\RecuperacaoSenhaController;
 use Controllers\SessaoController;
 use Middleware\Autenticacao;
 use Middleware\Cors;
@@ -18,12 +19,15 @@ use Services\AcessoNegadoException;
 use Services\ConflitoException;
 use Services\ContaService;
 use Services\DadosInvalidosException;
+use Services\FabricaDeMailer;
 use Services\FilaService;
 use Services\LimiteDeTentativas;
 use Services\LimiteExcedidoException;
 use Services\LojaService;
 use Services\NaoAutenticadoException;
+use Services\Mailer;
 use Services\NaoEncontradoException;
+use Services\RecuperacaoSenhaService;
 use Services\SessaoService;
 use Slim\App;
 use Slim\Exception\HttpBadRequestException;
@@ -61,6 +65,17 @@ final class Aplicacao
         $sessoes = new SessaoService($limite);
         $conta = new ContaController(new ContaService($sessoes, $limite), $proxies);
         $sessao = new SessaoController($sessoes, $proxies);
+        // E-mail: `mailer` (um objeto Mailer, nos testes) tem prioridade sobre o driver da configuração.
+        $registrar = $config['registrar'] ?? static function (string $mensagem): void {
+            error_log('[api] ' . $mensagem);
+        };
+        $mailer = ($config['mailer'] ?? null) instanceof Mailer
+            ? $config['mailer']
+            : FabricaDeMailer::criar($config['mail'] ?? [], $registrar);
+        $recuperacao = new RecuperacaoSenhaController(
+            new RecuperacaoSenhaService($sessoes, $mailer, (string) ($config['app_url'] ?? ''), $limite, $registrar),
+            $proxies
+        );
         $autenticada = new Autenticacao($sessoes);
         $daLoja = new LojaDaConta();
 
@@ -75,6 +90,10 @@ final class Aplicacao
         $app->delete('/api/sessao', [$sessao, 'sair'])->add($autenticada);
         $app->get('/api/conta', [$conta, 'dados'])->add($autenticada);
         $app->put('/api/conta/senha', [$conta, 'trocarSenha'])->add($autenticada);
+
+        // "Esqueci a senha": públicas
+        $app->post('/api/senha/esqueci', [$recuperacao, 'pedir']);
+        $app->post('/api/senha/redefinir', [$recuperacao, 'redefinir']);
 
         // Dashboard: sessão válida (Autenticacao, a mais externa) e loja da própria conta
         $app->get('/api/filas/{slug}/entradas', [$dashboard, 'listar'])->add($daLoja)->add($autenticada);
