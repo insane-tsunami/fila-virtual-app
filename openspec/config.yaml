@@ -12,7 +12,8 @@ context: |
   /dashboard/perfil e a rota pública /fila/:slug (página do cliente, sem login).
   Backend (server/): PHP 8.3+ com Composer (Slim 4, illuminate/database, guzzle),
   MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (nome, slug,
-  endereco_publico, conta_id), contas (e-mail, CNPJ, hash da senha), sessoes
+  endereco_publico, conta_id), contas (e-mail, CNPJ numérico ou alfanumérico com dígito verificador conferido e
+  guardado em maiúsculas, hash da senha), sessoes
   (hash do token, validade) e entradas_fila (migrações em
   server/database/migrations). Cada conta é dona de uma loja criada no cadastro.
   API pública: POST /api/contas (cadastro), POST /api/sessoes (login),
@@ -27,7 +28,7 @@ context: |
   5 s), QR code, Perfil (trocar a senha) e a página do cliente. As rotas do
   dashboard ficam atrás do login (src/sessao); o token fica em sessionStorage.
   Pendências: avatar, confirmação de e-mail, "esqueci a senha", limite de
-  tentativas e dígito verificador do CNPJ. Node 16 fixado para o front.
+  tentativas. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

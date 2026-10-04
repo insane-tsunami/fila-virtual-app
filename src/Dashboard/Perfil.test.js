@@ -19,14 +19,14 @@ jest.mock('../api', () => {
 const REDE = 'Não foi possível falar com o servidor. Tente de novo.';
 const expirar = jest.fn();
 
-function renderPerfil() {
+function renderPerfil(cnpj = '93339970000105') {
   return render(
     <MemoryRouter>
       <SessaoDeTeste
         valor={{
           token: 'tok',
           expirar,
-          conta: { email: 'contato@modaazul.com', cnpj: '93339970000105' },
+          conta: { email: 'contato@modaazul.com', cnpj },
         }}
       >
         <Perfil />
@@ -66,6 +66,18 @@ describe('Configurações do estabelecimento', () => {
     expect(getByLabelText('CNPJ').value).toBe('93.339.970/0001-05');
     expect(getByText('Não é possivel alterar o e-mail')).toBeInTheDocument();
     expect(getByText('Não é possivel alterar o CNPJ')).toBeInTheDocument();
+  });
+
+  it('CNPJ alfanumérico aparece com a máscara XX.XXX.XXX/XXXX-XX', () => {
+    const { getByLabelText } = renderPerfil('12ABC34501DE35');
+
+    expect(getByLabelText('CNPJ').value).toBe('12.ABC.345/01DE-35');
+  });
+
+  it('valor fora do formato é mostrado como veio, sem quebrar', () => {
+    const { getByLabelText } = renderPerfil('123');
+
+    expect(getByLabelText('CNPJ').value).toBe('123');
   });
 
   it('oferece os três campos de senha mascarados e "Atualizar", sem seletor de avatar', () => {

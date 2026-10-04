@@ -7,8 +7,8 @@
 
 ## 2. Front
 
-- [ ] 2.1 Fazer o campo "CNPJ" de `src/Register/index.js` converter para maiúsculas ao digitar e ao colar; verificar em `src/Register/index.test.js` com os cenários de "CNPJ em maiúsculas ao digitar" (digitar, colar, e o `422` de DV errado mostrando a mensagem e mantendo o CNPJ) e com a suíte inteira verde
-- [ ] 2.2 Fazer `mascararCnpj` em `src/Dashboard/Perfil.js` reconhecer letras (`XX.XXX.XXX/XXXX-DD`, e mostrar o valor como está se não casar); verificar em `src/Dashboard/Perfil.test.js` com o cenário "CNPJ alfanumérico" e o numérico; e atualizar o `README.md` e o contexto de `openspec/config.yaml` (CNPJ alfanumérico aceito e com DV conferido; sai a pendência) validando com `openspec validate --all --strict`
+- [x] 2.1 Fazer o campo "CNPJ" de `src/Register/index.js` converter para maiúsculas ao digitar e ao colar; verificar em `src/Register/index.test.js` com os cenários de "CNPJ em maiúsculas ao digitar" (digitar, colar, e o `422` de DV errado mostrando a mensagem e mantendo o CNPJ) e com a suíte inteira verde
+- [x] 2.2 Fazer `mascararCnpj` em `src/Dashboard/Perfil.js` reconhecer letras (`XX.XXX.XXX/XXXX-DD`, e mostrar o valor como está se não casar); verificar em `src/Dashboard/Perfil.test.js` com o cenário "CNPJ alfanumérico" e o numérico; e atualizar o `README.md` e o contexto de `openspec/config.yaml` (CNPJ alfanumérico aceito e com DV conferido; sai a pendência) validando com `openspec validate --all --strict`
 
 ## 3. Integração
 

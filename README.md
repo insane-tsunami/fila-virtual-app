@@ -29,7 +29,7 @@ O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` 
 
 ### Conta, login e sessão
 
-Cada estabelecimento tem a sua conta. **`/cadastro`** cria a conta e a loja juntas (e-mail, CNPJ, nome do estabelecimento e senha de 8 a 72 caracteres) e já deixa a pessoa logada; **`/login`** entra com e-mail e senha. `/dashboard`, `/dashboard/qrcode` e `/dashboard/perfil` só abrem para quem está logada (os demais vão para `/login` e voltam para a página pedida depois de entrar), e cada conta só vê e mexe na **própria** loja. A página do cliente (`/fila/<slug>`) continua pública.
+Cada estabelecimento tem a sua conta. **`/cadastro`** cria a conta e a loja juntas (e-mail, CNPJ, nome do estabelecimento e senha de 8 a 72 caracteres). O CNPJ pode ser numérico ou **alfanumérico** (formato da Receita desde julho de 2026, como `12.ABC.345/01DE-35`): o campo põe as letras em maiúsculas e o servidor confere o dígito verificador (CNPJ com dígito errado é recusado com uma mensagem na tela) e já deixa a pessoa logada; **`/login`** entra com e-mail e senha. `/dashboard`, `/dashboard/qrcode` e `/dashboard/perfil` só abrem para quem está logada (os demais vão para `/login` e voltam para a página pedida depois de entrar), e cada conta só vê e mexe na **própria** loja. A página do cliente (`/fila/<slug>`) continua pública.
 
 - O **token de sessão** vale 7 dias e fica só no `sessionStorage`: fechar a aba o apaga, "Sair" também, e trocar a senha encerra as outras sessões. Ele **nunca** vai no pacote do front.
 - Se a API recusar o token (vencido ou encerrado), o dashboard volta ao login com o aviso "Sua sessão expirou. Entre de novo.".
