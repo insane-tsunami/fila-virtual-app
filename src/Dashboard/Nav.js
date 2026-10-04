@@ -10,7 +10,7 @@ import Typography from '@material-ui/core/Typography';
 
 import { FaColumns, FaQrcode, FaCog, FaSignOutAlt } from 'react-icons/fa';
 
-import { apagarChave } from './chave';
+import { useSessao } from '../sessao/SessaoProvider';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -36,6 +36,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Nav() {
   const classes = useStyles();
+  const { sair } = useSessao();
   return (
     <MenuList className={classes.menuList}>
       <MenuItem component={Link} to="/dashboard">
@@ -62,7 +63,14 @@ export default function Nav() {
           Configurações
         </Typography>
       </MenuItem>
-      <MenuItem component={Link} to="/" onClick={apagarChave}>
+      <MenuItem
+        component={Link}
+        to="/"
+        onClick={(evento) => {
+          evento.preventDefault();
+          sair();
+        }}
+      >
         <ListItemIcon>
           <FaSignOutAlt fontSize="26px" />
         </ListItemIcon>

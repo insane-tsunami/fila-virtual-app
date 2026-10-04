@@ -2,7 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
 import Dashboard from './Dashboard';
-import ChaveGate from './Dashboard/ChaveGate';
+import {
+  SessaoProvider,
+  RotaProtegida,
+  RotaAnonima,
+} from './sessao/SessaoProvider';
 import QrCode from './Dashboard/Qrcode';
 import Perfil from './Dashboard/Perfil';
 import Cliente from './Cliente';
@@ -17,37 +21,45 @@ function App() {
     <>
       <GlobalStyles />
       <Router>
-        <Switch>
-          <Route exact path="/">
-            <Home />
-          </Route>
-          <Route path="/cadastro">
-            <Register />
-          </Route>
+        <SessaoProvider>
+          <Switch>
+            <Route exact path="/">
+              <Home />
+            </Route>
+            <Route path="/cadastro">
+              <RotaAnonima>
+                <Register />
+              </RotaAnonima>
+            </Route>
 
-          <Route path="/login">
-            <Login />
-          </Route>
-          <Route exact path="/dashboard">
-            <ChaveGate>
-              <Dashboard />
-            </ChaveGate>
-          </Route>
+            <Route path="/login">
+              <RotaAnonima>
+                <Login />
+              </RotaAnonima>
+            </Route>
+            <Route exact path="/dashboard">
+              <RotaProtegida>
+                <Dashboard />
+              </RotaProtegida>
+            </Route>
 
-          <Route path="/dashboard/qrcode">
-            <ChaveGate>
-              <QrCode />
-            </ChaveGate>
-          </Route>
+            <Route path="/dashboard/qrcode">
+              <RotaProtegida>
+                <QrCode />
+              </RotaProtegida>
+            </Route>
 
-          <Route path="/fila/:slug">
-            <Cliente />
-          </Route>
+            <Route path="/fila/:slug">
+              <Cliente />
+            </Route>
 
-          <Route path="/dashboard/perfil">
-            <Perfil />
-          </Route>
-        </Switch>
+            <Route path="/dashboard/perfil">
+              <RotaProtegida>
+                <Perfil />
+              </RotaProtegida>
+            </Route>
+          </Switch>
+        </SessaoProvider>
       </Router>
     </>
   );

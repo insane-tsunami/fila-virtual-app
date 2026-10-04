@@ -6,8 +6,6 @@ import Avatar from '@material-ui/core/Avatar';
 
 import {
   Wrapper,
-  BarNavigation,
-  BarAvatar,
   Container,
   Content,
   Painel,
@@ -16,11 +14,9 @@ import {
   InAttendance,
 } from './styles';
 
-import Nav from './Nav';
-import useLoja from './useLoja';
+import BarraLateral from './BarraLateral';
 import useFila from './useFila';
-import { useChave } from './ChaveGate';
-import { slug } from './estabelecimento';
+import { useSessao } from '../sessao/SessaoProvider';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -49,8 +45,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Dashboard() {
   const classes = useStyles();
-  const { nome, inicial } = useLoja();
-  const { chave, recusar } = useChave();
+  const { loja, token, expirar } = useSessao();
   const {
     clientes,
     carregado,
@@ -58,7 +53,7 @@ export default function Dashboard() {
     finalizando,
     erroFinalizar,
     finalizar,
-  } = useFila(slug, chave, recusar);
+  } = useFila(loja.slug, token, expirar);
 
   function statusOf(index) {
     if (index === 0) return 'current';
@@ -68,11 +63,7 @@ export default function Dashboard() {
 
   return (
     <Wrapper>
-      <BarNavigation>
-        <BarAvatar>{inicial}</BarAvatar>
-        <p>{nome}</p>
-        <Nav />
-      </BarNavigation>
+      <BarraLateral />
       <Container>
         <h1 className={classes.title}>Dashboard</h1>
         <Content>

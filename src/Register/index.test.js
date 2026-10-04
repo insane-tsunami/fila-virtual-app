@@ -1,72 +1,193 @@
 import React from 'react';
-import { MemoryRouter, Route } from 'react-router-dom';
-import { render, fireEvent } from '@testing-library/react';
+import { MemoryRouter, Route, Switch, useLocation } from 'react-router-dom';
+import { render, fireEvent, act } from '@testing-library/react';
 
 import Register from '.';
+import { SessaoProvider, RotaAnonima } from '../sessao/SessaoProvider';
+import { apagarToken, lerToken } from '../sessao/armazenamento';
+import * as api from '../api';
 
-function renderRegister() {
-  const location = {};
-  const utils = render(
-    <MemoryRouter initialEntries={['/cadastro']}>
-      <Register />
-      <Route
-        render={(props) => {
-          Object.assign(location, props.location);
-          return null;
-        }}
-      />
-    </MemoryRouter>
-  );
-  return { ...utils, location };
+jest.mock('../api', () => {
+  class ApiErrorMock extends Error {
+    constructor(status, message) {
+      super(message);
+      this.status = status;
+    }
+  }
+  return {
+    ApiError: ApiErrorMock,
+    obterConta: jest.fn(),
+    entrar: jest.fn(),
+    cadastrar: jest.fn(),
+    sair: jest.fn(),
+  };
+});
+
+const REDE = 'Não foi possível falar com o servidor. Tente de novo.';
+const SESSAO = {
+  token: 'tok',
+  conta: { email: 'contato@modaazul.com', cnpj: '93339970000105' },
+  loja: { nome: 'Moda Azul', slug: 'moda-azul', endereco_publico: null },
+};
+
+function Rota() {
+  return <p>rota: {useLocation().pathname}</p>;
 }
 
+function renderRegister() {
+  return render(
+    <MemoryRouter initialEntries={['/cadastro']}>
+      <SessaoProvider>
+        <Switch>
+          <Route path="/cadastro">
+            <RotaAnonima>
+              <Register />
+            </RotaAnonima>
+          </Route>
+          <Route path="/dashboard">
+            <Rota />
+          </Route>
+        </Switch>
+      </SessaoProvider>
+    </MemoryRouter>
+  );
+}
+
+const esvaziar = async () => {
+  for (let i = 0; i < 4; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await act(async () => {});
+  }
+};
+
+function preencher(u, mudancas = {}) {
+  const valores = {
+    'E-mail': 'contato@modaazul.com',
+    CNPJ: '93.339.970/0001-05',
+    'Nome do estabelecimento': 'Moda Azul',
+    'Escolha uma Senha': 'senha-segura-1',
+    'Confirme a senha': 'senha-segura-1',
+    ...mudancas,
+  };
+  Object.entries(valores).forEach(([rotulo, valor]) =>
+    fireEvent.change(u.getByLabelText(rotulo), { target: { value: valor } })
+  );
+}
+
+async function enviar(u) {
+  await act(async () => {
+    fireEvent.submit(u.getByLabelText('E-mail').closest('form'));
+  });
+  await esvaziar();
+}
+
+beforeEach(() => {
+  Object.values(api).forEach((f) => f.mockReset && f.mockReset());
+  apagarToken();
+  window.sessionStorage.clear();
+});
+
 describe('Cadastro do estabelecimento', () => {
-  const originalFetch = window.fetch;
-  let fetchSpy;
+  it('exibe os cinco campos e o botão, com as senhas mascaradas', async () => {
+    const u = renderRegister();
+    await esvaziar();
 
-  beforeEach(() => {
-    fetchSpy = jest.fn();
-    window.fetch = fetchSpy;
-  });
-
-  afterEach(() => {
-    window.fetch = originalFetch;
-  });
-
-  it('exibe os quatro campos e o botão, com as senhas mascaradas', () => {
-    const { getByLabelText, getByText } = renderRegister();
-
-    expect(getByLabelText('E-mail')).toBeInTheDocument();
-    expect(getByLabelText('CNPJ')).toBeInTheDocument();
-    expect(getByLabelText('Escolha uma Senha')).toHaveAttribute(
+    expect(u.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(u.getByLabelText('CNPJ')).toBeInTheDocument();
+    expect(u.getByLabelText('Nome do estabelecimento')).toBeInTheDocument();
+    expect(u.getByLabelText('Escolha uma Senha')).toHaveAttribute(
       'type',
       'password'
     );
-    expect(getByLabelText('Confirme a senha')).toHaveAttribute(
+    expect(u.getByLabelText('Confirme a senha')).toHaveAttribute(
       'type',
       'password'
     );
-    expect(getByText('Cadastrar')).toBeInTheDocument();
+    expect(u.getByText('Cadastrar')).toBeInTheDocument();
   });
 
-  it('leva ao login pelo botão "Faça o Login aqui"', () => {
-    const { getByText } = renderRegister();
+  it('leva ao login pelo botão "Faça o Login aqui"', async () => {
+    const u = renderRegister();
+    await esvaziar();
 
-    expect(getByText('Faça o Login aqui').closest('a')).toHaveAttribute(
+    expect(u.getByText('Faça o Login aqui').closest('a')).toHaveAttribute(
       'href',
       '/login'
     );
   });
 
-  it('não envia dados nem navega ao acionar "Cadastrar"', () => {
-    const { getByLabelText, getByText, location } = renderRegister();
+  it('cadastro válido: envia os quatro dados, fica logada e vai para /dashboard', async () => {
+    api.cadastrar.mockResolvedValue(SESSAO);
+    const u = renderRegister();
+    await esvaziar();
 
-    fireEvent.change(getByLabelText('E-mail'), {
-      target: { value: 'loja@exemplo.com' },
+    preencher(u);
+    await enviar(u);
+
+    expect(api.cadastrar).toHaveBeenCalledWith({
+      email: 'contato@modaazul.com',
+      cnpj: '93.339.970/0001-05',
+      nome: 'Moda Azul',
+      senha: 'senha-segura-1',
     });
-    fireEvent.click(getByText('Cadastrar'));
+    expect(u.getByText('rota: /dashboard')).toBeInTheDocument();
+    expect(lerToken()).toBe('tok');
+  });
 
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(location.pathname).toBe('/cadastro');
+  it('senhas diferentes: mensagem e nenhuma requisição', async () => {
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u, { 'Confirme a senha': 'outra-coisa-99' });
+    await enviar(u);
+
+    expect(u.getByText('As senhas não são iguais.')).toBeInTheDocument();
+    expect(api.cadastrar).not.toHaveBeenCalled();
+    expect(u.getByLabelText('E-mail').value).toBe('contato@modaazul.com');
+  });
+
+  it('409: mostra a mensagem e mantém e-mail, CNPJ e nome (as senhas são esvaziadas)', async () => {
+    api.cadastrar.mockRejectedValue(
+      new api.ApiError(409, 'Já existe uma conta com este e-mail.')
+    );
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u);
+    await enviar(u);
+
+    expect(
+      u.getByText('Já existe uma conta com este e-mail.')
+    ).toBeInTheDocument();
+    expect(u.getByLabelText('E-mail').value).toBe('contato@modaazul.com');
+    expect(u.getByLabelText('CNPJ').value).toBe('93.339.970/0001-05');
+    expect(u.getByLabelText('Nome do estabelecimento').value).toBe('Moda Azul');
+    expect(u.getByLabelText('Escolha uma Senha').value).toBe('');
+    expect(u.getByLabelText('Confirme a senha').value).toBe('');
+    expect(lerToken()).toBeNull();
+  });
+
+  it('422: mostra a mensagem da API e continua em /cadastro', async () => {
+    api.cadastrar.mockRejectedValue(new api.ApiError(422, 'E-mail inválido.'));
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u, { 'E-mail': 'sem-arroba' });
+    await enviar(u);
+
+    expect(u.getByText('E-mail inválido.')).toBeInTheDocument();
+    expect(u.getByLabelText('CNPJ')).toBeInTheDocument();
+  });
+
+  it('API fora do ar: mensagem fixa e campos mantidos', async () => {
+    api.cadastrar.mockRejectedValue(new api.ApiError(0, 'rede'));
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u);
+    await enviar(u);
+
+    expect(u.getByText(REDE)).toBeInTheDocument();
+    expect(u.getByLabelText('Nome do estabelecimento').value).toBe('Moda Azul');
   });
 });

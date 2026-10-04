@@ -11,19 +11,23 @@ context: |
   react-router v5. Rotas: /, /cadastro, /login, /dashboard, /dashboard/qrcode,
   /dashboard/perfil e a rota pública /fila/:slug (página do cliente, sem login).
   Backend (server/): PHP 8.3+ com Composer (Slim 4, illuminate/database, guzzle),
-  MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (com o
-  endereco_publico de cada loja) e entradas_fila (migrações em
-  server/database/migrations). API: GET /api/filas/{slug} (público),
-  PUT /api/filas/{slug}/endereco (chave) e /api/filas/{slug}/entradas
-  (specs queue-intake, queue-management, store-address e api-platform); as rotas
-  do dashboard usam uma chave provisória (X-API-Key). Sem login e sem multi-loja.
-  Estado atual: a página do cliente (/fila/:slug, spec customer-queue-page), o
-  dashboard (fila real com atualização a cada 5 s e finalizar atendimento) e o
-  QR code consomem a API por src/api.js, com a base em REACT_APP_API_URL. As
-  páginas /dashboard e /dashboard/qrcode pedem a chave provisória X-API-Key em
-  uma tela de chave (spec dashboard-access), guardada só em sessionStorage;
-  só o Perfil (/dashboard/perfil) ainda usa dados fictícios. Node 16 fixado
-  para o front.
+  MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (nome, slug,
+  endereco_publico, conta_id), contas (e-mail, CNPJ, hash da senha), sessoes
+  (hash do token, validade) e entradas_fila (migrações em
+  server/database/migrations). Cada conta é dona de uma loja criada no cadastro.
+  API pública: POST /api/contas (cadastro), POST /api/sessoes (login),
+  GET /api/filas/{slug} e as chamadas do cliente em /api/filas/{slug}/entradas.
+  API com sessão (Authorization: Bearer <token>, 7 dias, token só como hash no
+  banco): GET /api/conta, PUT /api/conta/senha, DELETE /api/sessao e, só para a
+  loja da própria conta, listar a fila, finalizar e PUT /api/filas/{slug}/endereco
+  (specs queue-intake, queue-management, store-address, establishment-account,
+  account-session e api-platform). A antiga chave X-API-Key foi removida.
+  Estado atual: o front inteiro consome a API por src/api.js (base em
+  REACT_APP_API_URL): cadastro, login, dashboard (fila real, atualização a cada
+  5 s), QR code, Perfil (trocar a senha) e a página do cliente. As rotas do
+  dashboard ficam atrás do login (src/sessao); o token fica em sessionStorage.
+  Pendências: avatar, confirmação de e-mail, "esqueci a senha", limite de
+  tentativas e dígito verificador do CNPJ. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

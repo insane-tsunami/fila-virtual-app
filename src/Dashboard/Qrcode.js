@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { makeStyles } from '@material-ui/core/styles';
 import Typography from '@material-ui/core/Typography';
@@ -7,21 +7,11 @@ import Button from '@material-ui/core/Button';
 
 import { QRCodeSVG } from 'qrcode.react';
 import { FaQrcode } from 'react-icons/fa';
-import {
-  Wrapper,
-  BarNavigation,
-  BarAvatar,
-  Container,
-  Content,
-  Painel,
-  InAttendance,
-} from './styles';
+import { Wrapper, Container, Content, Painel, InAttendance } from './styles';
 
-import Nav from './Nav';
+import BarraLateral from './BarraLateral';
 import { buscarLoja, definirEndereco } from '../api';
-import { useChave } from './ChaveGate';
-import { slug } from './estabelecimento';
-import useLoja from './useLoja';
+import { useSessao } from '../sessao/SessaoProvider';
 
 const useStyles = makeStyles(() => ({
   title: {
@@ -53,22 +43,16 @@ const useStyles = makeStyles(() => ({
 
 export default function QrCode() {
   const classes = useStyles();
-  const { nome, inicial, loja } = useLoja();
-  const { chave, recusar } = useChave();
+  const { loja, token, expirar, atualizarLoja } = useSessao();
+  const { slug } = loja;
   const [url, setUrl] = useState('');
   const [erro, setErro] = useState(false);
   const [gerando, setGerando] = useState(false);
-  const [endereco, setEndereco] = useState('');
-  const [editado, setEditado] = useState(false);
+  const [endereco, setEndereco] = useState(loja.endereco_publico || '');
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState(null);
   // muda a cada endereço salvo: descarta um QR que ainda estava sendo gerado
   const versao = useRef(0);
-
-  // preenche o campo com o endereço atual da loja, sem pisar no que o dono digitou
-  useEffect(() => {
-    if (loja && !editado) setEndereco(loja.endereco_publico || '');
-  }, [loja, editado]);
 
   const gerar = async () => {
     const minha = versao.current;
@@ -93,14 +77,15 @@ export default function QrCode() {
     setSalvando(true);
     setResultado(null);
     try {
-      const dados = await definirEndereco(slug, endereco.trim(), chave);
+      const dados = await definirEndereco(slug, endereco.trim(), token);
       versao.current += 1;
       setUrl('');
       setErro(false);
       setEndereco(dados.endereco_publico || '');
+      atualizarLoja(dados);
       setResultado({ ok: true, texto: 'Endereço salvo.' });
     } catch (e) {
-      if (e.status === 401) recusar();
+      if (e.status === 401) expirar();
       else setResultado({ ok: false, texto: e.message });
     } finally {
       setSalvando(false);
@@ -109,11 +94,7 @@ export default function QrCode() {
 
   return (
     <Wrapper>
-      <BarNavigation>
-        <BarAvatar>{inicial}</BarAvatar>
-        <p>{nome}</p>
-        <Nav />
-      </BarNavigation>
+      <BarraLateral />
       <Container>
         <h1 className={classes.title}>Gerar QRCode</h1>
         <Content>
@@ -145,10 +126,7 @@ export default function QrCode() {
                 label="Endereço público da loja"
                 placeholder="https://loja.exemplo.com"
                 value={endereco}
-                onChange={(e) => {
-                  setEditado(true);
-                  setEndereco(e.target.value);
-                }}
+                onChange={(e) => setEndereco(e.target.value)}
                 helperText="Só o endereço do site, sem caminho. Vazio usa o endereço desta página."
                 fullWidth
                 margin="normal"
