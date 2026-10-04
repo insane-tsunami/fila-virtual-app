@@ -22,6 +22,8 @@ final class LimiteDeTentativas
     public const ESQUECI_EMAIL = 'esqueci_email';
     public const ESQUECI_IP = 'esqueci_ip';
     public const REDEFINIR_IP = 'redefinir_ip';
+    public const CONFIRMACAO_CONTA = 'confirmacao_conta';
+    public const CONFIRMAR_IP = 'confirmar_ip';
 
     /** @var callable(Throwable): void */
     private $logger;
@@ -55,6 +57,11 @@ final class LimiteDeTentativas
             self::ESQUECI_EMAIL => ['max' => $config['esqueci_email'], 'janela' => $config['esqueci_janela_minutos'] * 60],
             self::ESQUECI_IP => ['max' => $config['esqueci_ip'], 'janela' => $config['esqueci_janela_minutos'] * 60],
             self::REDEFINIR_IP => ['max' => $config['redefinir_ip'], 'janela' => $janela],
+            self::CONFIRMACAO_CONTA => [
+                'max' => $config['confirmacao_conta'],
+                'janela' => $config['confirmacao_janela_minutos'] * 60,
+            ],
+            self::CONFIRMAR_IP => ['max' => $config['confirmar_ip'], 'janela' => $janela],
         ], $logger);
     }
 

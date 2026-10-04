@@ -59,7 +59,16 @@ final class PasswordRecoveryApiTest extends ApiTestCase
     /** Cadastra a conta de teste e devolve o token da sessão aberta no cadastro. */
     private function conta(): string
     {
-        return $this->cadastrarConta('Moda Azul', self::EMAIL, '93339970000105', 'senha-antiga-1')['token'];
+        $token = $this->cadastrarConta('Moda Azul', self::EMAIL, '93339970000105', 'senha-antiga-1')['token'];
+        $this->confirmarEmail();
+
+        return $token;
+    }
+
+    /** O link de redefinição só vai para e-mail confirmado. */
+    private function confirmarEmail(): void
+    {
+        $this->db->table('contas')->where('email', self::EMAIL)->update(['email_confirmado_em' => gmdate('Y-m-d H:i:s')]);
     }
 
     // --- Pedido ----------------------------------------------------------------------------
@@ -93,6 +102,21 @@ final class PasswordRecoveryApiTest extends ApiTestCase
         $this->assertSame((string) $com->getBody(), (string) $sem->getBody());
         $this->assertSame($com->getHeaders(), $sem->getHeaders());
         $this->assertCount(1, $this->mailer->enviados, 'só a conta existente recebe e-mail');
+    }
+
+    public function testEmailNaoConfirmadoTemExatamenteAMesmaRespostaENaoRecebeNada(): void
+    {
+        $this->conta();
+        $this->db->table('contas')->where('email', self::EMAIL)->update(['email_confirmado_em' => null]);
+        $semConta = $this->pedir('ninguem@exemplo.com');
+
+        $naoConfirmado = $this->pedir();
+
+        $this->assertSame(202, $naoConfirmado->getStatusCode());
+        $this->assertSame((string) $semConta->getBody(), (string) $naoConfirmado->getBody());
+        $this->assertSame($semConta->getHeaders(), $naoConfirmado->getHeaders());
+        $this->assertSame([], $this->mailer->enviados);
+        $this->assertSame(0, $this->db->table('redefinicoes_senha')->count());
     }
 
     public function testEmailComMaiusculasEEspacos(): void

@@ -36,6 +36,7 @@ final class RecuperacaoSenhaServiceTest extends DatabaseTestCase
         (new ContaService($this->sessoes))->cadastrar([
             'email' => self::EMAIL, 'cnpj' => '93339970000105', 'nome' => 'Moda Azul', 'senha' => 'senha-antiga-1',
         ]);
+        $this->confirmarEmail(self::EMAIL);
         $this->mailer = new MailerEmMemoria();
         $this->servico = $this->servico($this->mailer);
     }
@@ -45,6 +46,12 @@ final class RecuperacaoSenhaServiceTest extends DatabaseTestCase
         return new RecuperacaoSenhaService($this->sessoes, $mailer, $appUrl, null, function (string $mensagem): void {
             $this->log[] = $mensagem;
         });
+    }
+
+    /** O link de redefinição só vai para e-mail confirmado. */
+    private function confirmarEmail(string $email): void
+    {
+        $this->db->table('contas')->where('email', $email)->update(['email_confirmado_em' => gmdate('Y-m-d H:i:s')]);
     }
 
     private function pedirEPegarToken(string $email = self::EMAIL): string
@@ -89,6 +96,18 @@ final class RecuperacaoSenhaServiceTest extends DatabaseTestCase
     public function testEmailSemContaTemAMesmaRespostaENaoEnviaNada(): void
     {
         $resposta = $this->servico->pedir('ninguem@exemplo.com');
+
+        $this->assertSame(RecuperacaoSenhaService::MENSAGEM_PEDIDO, $resposta);
+        $this->assertSame([], $this->mailer->enviados);
+        $this->assertSame(0, $this->db->table('redefinicoes_senha')->count());
+        $this->assertSame([], $this->log);
+    }
+
+    public function testEmailNaoConfirmadoTemAMesmaRespostaENaoRecebeNada(): void
+    {
+        $this->db->table('contas')->where('email', self::EMAIL)->update(['email_confirmado_em' => null]);
+
+        $resposta = $this->servico->pedir(self::EMAIL);
 
         $this->assertSame(RecuperacaoSenhaService::MENSAGEM_PEDIDO, $resposta);
         $this->assertSame([], $this->mailer->enviados);
@@ -153,6 +172,7 @@ final class RecuperacaoSenhaServiceTest extends DatabaseTestCase
         $outra = (new ContaService($this->sessoes))->cadastrar([
             'email' => 'outra@exemplo.com', 'cnpj' => '12ABC34501DE35', 'nome' => 'Loja Nova', 'senha' => 'senha-segura-1',
         ]);
+        $this->confirmarEmail('outra@exemplo.com');
         $this->servico->pedir('outra@exemplo.com');
         $this->db->table('redefinicoes_senha')->update(['expira_em' => gmdate('Y-m-d H:i:s', time() - 5)]);
 

@@ -41,6 +41,10 @@ return [
         'esqueci_ip' => $inteiro('RATE_LIMIT_ESQUECI_IP', 10),
         'esqueci_janela_minutos' => $inteiro('RATE_LIMIT_ESQUECI_JANELA_MIN', 60),
         'redefinir_ip' => $inteiro('RATE_LIMIT_REDEFINIR_IP', 20),
+        // Confirmação do e-mail: envios (reenviar e trocar o e-mail) por conta na janela própria; tokens inválidos por IP.
+        'confirmacao_conta' => $inteiro('RATE_LIMIT_CONFIRMACAO_CONTA', 3),
+        'confirmacao_janela_minutos' => $inteiro('RATE_LIMIT_CONFIRMACAO_JANELA_MIN', 60),
+        'confirmar_ip' => $inteiro('RATE_LIMIT_CONFIRMAR_IP', 20),
     ],
     // Base dos links enviados por e-mail (sem barra final). Sem ela, o link não é montado.
     'app_url' => rtrim($env('APP_URL'), '/'),
