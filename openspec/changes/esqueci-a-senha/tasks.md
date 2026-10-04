@@ -20,10 +20,10 @@
 
 ## 4. Front
 
-- [ ] 4.1 Criar `pedirRedefinicao` e `redefinirSenha` em `src/api.js` e testar em `api.test.js` (corpo, rota e erro `422`/`429` como `ApiError`)
-- [ ] 4.2 Criar as telas `EsqueciSenha` e `RedefinirSenha` (token do fragmento, endereço limpo, link sem token, senhas diferentes, `422` e `429` na tela, falha de rede, sucesso para `/login` com aviso), as rotas anônimas em `App.js`, o link "Esqueci a senha" e o aviso (que não reaparece ao recarregar) no `Login`; verificar com testes das duas telas e do `Login` e com `yarn test`, lint e `CI=true yarn build`
+- [x] 4.1 Criar `pedirRedefinicao` e `redefinirSenha` em `src/api.js` e testar em `api.test.js` (corpo, rota e erro `422`/`429` como `ApiError`)
+- [x] 4.2 Criar as telas `EsqueciSenha` e `RedefinirSenha` (token do fragmento, endereço limpo, link sem token, senhas diferentes, `422` e `429` na tela, falha de rede, sucesso para `/login` com aviso), as rotas anônimas em `App.js`, o link "Esqueci a senha" e o aviso (que não reaparece ao recarregar) no `Login`; verificar com testes das duas telas e do `Login` e com `yarn test`, lint e `CI=true yarn build`
 
 ## 5. Documentação e verificação final
 
-- [ ] 5.1 Atualizar `README.md` (fluxo "Esqueci a senha", `APP_URL` e `MAIL_*`, sem prometer envio sem configurar) e `openspec/config.yaml` (rotas novas, tabela `redefinicoes_senha`, `MAIL_DRIVER`, tirar "esqueci a senha" das pendências); conferir que os comandos documentados rodam como escritos
-- [ ] 5.2 Integração: subir a API com SQLite e `MAIL_DRIVER=log`, cadastrar uma conta, pedir a redefinição por `curl`, tirar o token do log, redefinir, conferir que o login antigo falha e o novo funciona e que o mesmo token dá `422`; rodar `openspec validate esqueci-a-senha --strict` e a suíte completa da API e do front
+- [x] 5.1 Atualizar `README.md` (fluxo "Esqueci a senha", `APP_URL` e `MAIL_*`, sem prometer envio sem configurar) e `openspec/config.yaml` (rotas novas, tabela `redefinicoes_senha`, `MAIL_DRIVER`, tirar "esqueci a senha" das pendências); conferir que os comandos documentados rodam como escritos
+- [x] 5.2 Integração: subir a API com SQLite e `MAIL_DRIVER=log`, cadastrar uma conta, pedir a redefinição por `curl`, tirar o token do log, redefinir, conferir que o login antigo falha e o novo funciona e que o mesmo token dá `422`; rodar `openspec validate esqueci-a-senha --strict` e a suíte completa da API e do front

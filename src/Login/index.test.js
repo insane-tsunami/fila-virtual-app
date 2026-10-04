@@ -186,6 +186,45 @@ describe('Login do estabelecimento', () => {
     expect(u.queryByText(/rota:/)).not.toBeInTheDocument();
   });
 
+  it('oferece o link "Esqueci a senha" para /esqueci-senha', async () => {
+    const u = renderLogin();
+    await esvaziar();
+
+    expect(u.getByText('Esqueci a senha').closest('a')).toHaveAttribute(
+      'href',
+      '/esqueci-senha'
+    );
+  });
+
+  it('mostra o aviso vindo da redefinição de senha uma vez e o tira do histórico', async () => {
+    const aviso = 'Senha alterada. Entre com a nova senha.';
+    let atual;
+    const u = render(
+      <MemoryRouter initialEntries={[{ pathname: '/login', state: { aviso } }]}>
+        <SessaoProvider>
+          <RotaAnonima>
+            <Login />
+          </RotaAnonima>
+        </SessaoProvider>
+        <Route
+          render={({ location }) => {
+            atual = location;
+            return null;
+          }}
+        />
+      </MemoryRouter>
+    );
+    await esvaziar();
+
+    expect(u.getByText(aviso)).toBeInTheDocument();
+    expect(atual.state).toBeUndefined();
+
+    u.unmount();
+    const recarregado = renderLogin({ pathname: '/login', state: atual.state });
+    await esvaziar();
+    expect(recarregado.queryByText(aviso)).toBeNull();
+  });
+
   it('campos em branco: mensagem e nenhuma requisição', async () => {
     const u = renderLogin();
     await esvaziar();

@@ -11,7 +11,9 @@ import QrCode from './Dashboard/Qrcode';
 import Perfil from './Dashboard/Perfil';
 import Cliente from './Cliente';
 import Home from './Home';
+import EsqueciSenha from './EsqueciSenha';
 import Login from './Login';
+import RedefinirSenha from './RedefinirSenha';
 import Register from './Register';
 
 import GlobalStyles from './styles/global';
@@ -37,6 +39,18 @@ function App() {
                 <Login />
               </RotaAnonima>
             </Route>
+            <Route path="/esqueci-senha">
+              <RotaAnonima>
+                <EsqueciSenha />
+              </RotaAnonima>
+            </Route>
+
+            <Route path="/redefinir-senha">
+              <RotaAnonima>
+                <RedefinirSenha />
+              </RotaAnonima>
+            </Route>
+
             <Route exact path="/dashboard">
               <RotaProtegida>
                 <Dashboard />

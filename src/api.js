@@ -98,3 +98,12 @@ export const trocarSenha = (token, senhaAtual, novaSenha) =>
     { senha_atual: senhaAtual, nova_senha: novaSenha },
     token
   );
+
+export const pedirRedefinicao = (email) =>
+  requisitar('POST', '/api/senha/esqueci', { email });
+
+export const redefinirSenha = (token, novaSenha) =>
+  requisitar('POST', '/api/senha/redefinir', {
+    token,
+    nova_senha: novaSenha,
+  });
