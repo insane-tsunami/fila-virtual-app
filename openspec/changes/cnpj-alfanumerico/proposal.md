@@ -22,7 +22,7 @@ Desde julho de 2026 a Receita Federal emite CNPJs **alfanuméricos** para empres
 - **Sem validação de DV no front:** o servidor é a única fonte da regra, e o front mostra a mensagem do `422`.
 
 **Dados de teste e documentação**
-- O CNPJ de teste `93.339.970/0001-05`, usado em 61 pontos de 17 arquivos, **tem DV inválido** (o correto seria `-20`; veio do valor fixo do Perfil antigo). Passa a valer `11.222.333/0001-81`, que tem DV válido.
+- O CNPJ de teste `93.339.970/0001-05` (usado em 61 pontos de 17 arquivos) tem dígito verificador **válido** (`05`), então **nenhum dado de teste precisa mudar**. Os testes novos acrescentam vetores alfanuméricos válidos (inclusive o exemplo oficial `12.ABC.345/01DE-35`) e de dígito errado.
 - `server/README.md`, o `README.md` do front e o contexto do `openspec/config.yaml` deixam de dizer que o CNPJ "não é validado".
 
 ## Capabilities
@@ -37,8 +37,8 @@ Nenhuma.
 
 ## Impact
 
-- **Backend:** `server/app/support/Cnpj.php`, `server/app/services/ContaService.php` (mensagem), `server/tests/` (`CnpjTest`, `ContaServiceTest`, `AccountApiTest` e a troca do CNPJ de teste em 6 arquivos), `server/README.md`.
-- **Front:** `src/Register/index.js`, `src/Dashboard/Perfil.js`, os testes correspondentes e a troca do CNPJ de teste em 9 arquivos de teste, `README.md`.
+- **Backend:** `server/app/support/Cnpj.php`, `server/app/services/ContaService.php` (mensagem), `server/tests/` (`CnpjTest`, `ContaServiceTest`, `AccountApiTest`), `server/README.md`.
+- **Front:** `src/Register/index.js`, `src/Dashboard/Perfil.js`, os testes correspondentes e `README.md`.
 - **Banco, dependências e CI:** nenhuma migração, nenhuma dependência nova e nenhum job novo; os 4 jobs existentes continuam sendo a barreira.
 - **Incompatibilidade:** CNPJs numéricos com DV inválido, que hoje são aceitos, passam a ser recusados. Não há conta real em produção, então nada precisa ser migrado.
 - **Fora desta mudança:** provar que o CNPJ pertence a quem se cadastra (consulta à Receita, confirmação de e-mail), limite de tentativas, "esqueci a senha", e qualquer validação do CNPJ no front.

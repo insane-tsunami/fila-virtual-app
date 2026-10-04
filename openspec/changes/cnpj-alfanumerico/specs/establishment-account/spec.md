@@ -6,8 +6,8 @@
 O e-mail SHALL ter formato válido, até 254 caracteres, e ser guardado sem espaços nas pontas e em minúsculas. O CNPJ SHALL ser aceito com ou sem máscara, em letras maiúsculas ou minúsculas, e guardado como 14 caracteres sem máscara e em maiúsculas: as 12 primeiras posições são letras de `A` a `Z` ou dígitos e as 2 últimas são os dígitos verificadores, que SHALL ser conferidos (módulo 11, pesos 5,4,3,2,9,8,7,6,5,4,3,2 e 6,5,4,3,2,9,8,7,6,5,4,3,2, com cada caractere valendo o seu código ASCII menos 48). Um CNPJ com os 14 caracteres iguais MUST ser recusado. O nome SHALL ter de 2 a 120 caracteres sem contar espaços nas pontas. A senha SHALL ter de 8 a 72 bytes. Dado inválido SHALL ser recusado com `422` e uma mensagem que diga qual campo está errado; para o CNPJ, a mensagem SHALL mandar conferir os caracteres e os dígitos verificadores.
 
 #### Scenario: CNPJ com máscara
-- **WHEN** o CNPJ é enviado como `11.222.333/0001-81`
-- **THEN** ele é aceito e guardado como `11222333000181`
+- **WHEN** o CNPJ é enviado como `93.339.970/0001-05`
+- **THEN** ele é aceito e guardado como `93339970000105`
 
 #### Scenario: CNPJ alfanumérico
 - **WHEN** o CNPJ é enviado como `12.ABC.345/01DE-35`
