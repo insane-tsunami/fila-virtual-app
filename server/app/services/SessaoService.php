@@ -123,6 +123,12 @@ final class SessaoService
         Sessao::query()->where('conta_id', $contaId)->whereKeyNot($manterSessaoId)->delete();
     }
 
+    /** Encerra todas as sessões da conta (usado ao redefinir a senha). */
+    public function encerrarTodas(int $contaId): void
+    {
+        Sessao::query()->where('conta_id', $contaId)->delete();
+    }
+
     private static function hashDoToken(string $token): string
     {
         return hash('sha256', $token);

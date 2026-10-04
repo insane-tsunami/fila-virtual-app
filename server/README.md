@@ -24,6 +24,10 @@ A configuração vem de **variáveis de ambiente** (o PHP não lê o `.env` sozi
 | `DB_HOST`, `DB_USER`, `DB_PASS` | Acesso ao MySQL | `localhost`, vazio, vazio |
 | `DB_NAME` | Nome do banco MySQL, ou caminho do arquivo SQLite | `zerafilas` |
 | `CORS_ORIGIN` | Única origem permitida para CORS, por exemplo `https://zerafilas.exemplo.com`. Vazia = sem cabeçalhos CORS | vazia |
+| `APP_URL` | Endereço público do front, sem barra final (ex.: `https://zerafilas.exemplo.com`): base do link de redefinição de senha enviado por e-mail. Sem ela o link não é montado e nenhum e-mail sai | vazia |
+| `MAIL_DRIVER` | Como enviar e-mail: `desligado` (não envia, só avisa no log), `log` (grava a mensagem inteira no log, **só para desenvolvimento e testes**: o link de redefinição é um segredo) ou `smtp` (envio real). Outro valor é tratado como `desligado` e avisado no log | `desligado` |
+| `MAIL_DSN` | Servidor SMTP do driver `smtp`, no formato do Symfony Mailer, ex.: `smtp://usuario:senha@smtp.exemplo.com:587`. É um segredo: nunca commite | vazia |
+| `MAIL_FROM` | Remetente dos e-mails do driver `smtp`, ex.: `ZeraFilas <nao-responda@exemplo.com>` | vazia |
 | `TRUSTED_PROXIES` | IPs ou faixas CIDR de proxies confiáveis, separados por vírgula (ex.: `10.0.0.1,172.16.0.0/12`). Só atrás deles a API lê o `X-Forwarded-For` para descobrir o IP do cliente (ver [Limite de tentativas](#limite-de-tentativas)) | vazia |
 | `RATE_LIMIT_LOGIN_EMAIL` | Erros de login por e-mail que bloqueiam o e-mail na janela | `5` |
 | `RATE_LIMIT_LOGIN_IP` | Erros de login por IP que bloqueiam o IP na janela | `20` |
@@ -31,6 +35,10 @@ A configuração vem de **variáveis de ambiente** (o PHP não lê o `.env` sozi
 | `RATE_LIMIT_JANELA_MIN` | Janela, em minutos, dos três limites acima | `15` |
 | `RATE_LIMIT_CADASTRO_IP` | Tentativas de cadastro por IP na janela do cadastro | `5` |
 | `RATE_LIMIT_CADASTRO_JANELA_MIN` | Janela, em minutos, do limite de cadastro | `60` |
+| `RATE_LIMIT_ESQUECI_EMAIL` | Pedidos de redefinição de senha por e-mail na janela do "esqueci a senha" | `3` |
+| `RATE_LIMIT_ESQUECI_IP` | Pedidos de redefinição de senha por IP na mesma janela | `10` |
+| `RATE_LIMIT_ESQUECI_JANELA_MIN` | Janela, em minutos, dos dois limites de pedido acima | `60` |
+| `RATE_LIMIT_REDEFINIR_IP` | Tokens inválidos na redefinição por IP que bloqueiam o IP na janela de `RATE_LIMIT_JANELA_MIN` | `20` |
 
 Os `RATE_LIMIT_*` aceitam só inteiros positivos; qualquer outro valor (vazio, `0`, negativo, texto) é ignorado e vale o padrão.
 
@@ -42,7 +50,7 @@ Nunca commite valores reais de banco. (A antiga variável `API_KEY` não existe 
 php bin/migrate        # ou: composer migrate
 ```
 
-Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes` e `limites_tentativas` (contadores do limite de tentativas) e insere o estabelecimento de partida (`Veste Bem`, slug `veste-bem`). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
+Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e insere o estabelecimento de partida (`Veste Bem`, slug `veste-bem`). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
 
 > No MySQL, comandos de criação de tabela não são transacionais. Se uma migração falhar no meio, confira a tabela `migrations` e o que foi criado antes de rodar de novo.
 
@@ -91,6 +99,19 @@ curl -X POST http://localhost:8080/api/contas -H 'Content-Type: application/json
 TOKEN=$(curl -s -X POST http://localhost:8080/api/sessoes -H 'Content-Type: application/json' \
   -d '{"email": "contato@modaazul.com", "senha": "senha-segura-1"}' | php -r 'echo json_decode(stream_get_contents(STDIN))->token;')
 ```
+
+**Esqueci a senha** (público, em duas chamadas). `POST /api/senha/esqueci` com `{"email"}` responde **sempre `202`** com a mesma mensagem, haja conta ou não (e-mail com formato inválido é `422`), e só manda o e-mail se a conta existe. O e-mail traz o link `<APP_URL>/redefinir-senha#token=<token>`, com o token no **fragmento** (que não vai para logs de servidor nem no `Referer`). O token tem 256 bits, vale **1 hora**, é de **uso único** e o banco guarda só o hash; um pedido novo invalida o anterior. `POST /api/senha/redefinir` com `{"token", "nova_senha"}` troca a senha (8 a 72 caracteres), apaga os tokens da conta e **encerra todas as sessões**; não abre sessão (a pessoa entra de novo). Token ausente, errado, vencido ou já usado é `422` ("Link inválido ou expirado. Peça um novo."); senha inválida é `422` e o token continua valendo. Falha no envio **não aparece** na resposta (senão revelaria quais e-mails têm conta): vai para o log. Os limites estão em [Limite de tentativas](#limite-de-tentativas).
+
+```bash
+# Em desenvolvimento, com MAIL_DRIVER=log e APP_URL definidos, o link aparece no log do servidor.
+curl -X POST http://localhost:8080/api/senha/esqueci -H 'Content-Type: application/json' -d '{"email": "contato@modaazul.com"}'
+# {"mensagem":"Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."}
+curl -X POST http://localhost:8080/api/senha/redefinir -H 'Content-Type: application/json' \
+  -d '{"token": "<token do link>", "nova_senha": "outra-senha-22"}'
+# {"mensagem":"Senha alterada."}
+```
+
+> **E-mail:** sem configuração o envio fica **desligado** (`MAIL_DRIVER=desligado`): o pedido responde `202` mas nenhum e-mail sai e o log avisa. Para enviar de verdade use `MAIL_DRIVER=smtp` com `MAIL_DSN`, `MAIL_FROM` e `APP_URL`. O driver `log` grava o link (um segredo) no log: **só para desenvolvimento e testes**, nunca em produção.
 
 **Dados da conta, trocar a senha e sair** (exigem `Authorization`). Trocar a senha encerra as outras sessões da conta; senha atual errada é `422` (e não `401`).
 
@@ -163,7 +184,7 @@ O comportamento completo está especificado em [`openspec/specs/`](../openspec/s
 
 ## Limite de tentativas
 
-Três rotas públicas ou de conta têm limite, para dificultar a adivinhação de senha, a criação de contas em massa e a sobrecarga por logins repetidos. Os contadores ficam na tabela `limites_tentativas` (janela fixa; o e-mail e o IP só existem lá como hash) e os números são configuráveis (ver [Configuração](#configuração)):
+Cinco rotas públicas ou de conta têm limite, para dificultar a adivinhação de senha, a criação de contas em massa e a sobrecarga por logins repetidos. Os contadores ficam na tabela `limites_tentativas` (janela fixa; o e-mail e o IP só existem lá como hash) e os números são configuráveis (ver [Configuração](#configuração)):
 
 | Rota | Quem é limitado | Padrão | O que conta |
 |---|---|---|---|
@@ -171,6 +192,9 @@ Três rotas públicas ou de conta têm limite, para dificultar a adivinhação d
 | `POST /api/sessoes` (login) | cada IP | 20 em 15 min | só os erros |
 | `POST /api/contas` (cadastro) | cada IP | 5 em 60 min | toda chamada, inclusive as recusadas (`409`, `422`) |
 | `PUT /api/conta/senha` (trocar a senha) | cada conta | 5 em 15 min | só as senhas atuais erradas |
+| `POST /api/senha/esqueci` (pedir o link) | cada e-mail | 3 em 60 min | todo pedido válido, inclusive e-mail sem conta |
+| `POST /api/senha/esqueci` (pedir o link) | cada IP | 10 em 60 min | todo pedido válido |
+| `POST /api/senha/redefinir` (concluir) | cada IP | 20 em 15 min | só os tokens inválidos |
 
 - Esgotado o limite, a rota responde **`429`** com `{"erro": "Muitas tentativas. Tente de novo em N minutos."}` e o cabeçalho `Retry-After` (segundos), **sem verificar a senha**, mesmo que ela esteja certa. O bloqueio vale até a janela vencer.
 - Um login correto zera o contador do e-mail; uma troca de senha bem-sucedida zera o da conta. Dados incompletos (`422`) no login não contam.
@@ -193,7 +217,7 @@ server/
   public/            front controller (index.php) e .htaccess para Apache
   api/config.php     lê as variáveis de ambiente e devolve um array
   app/controllers/   ClienteController, DashboardController, LojaController, ContaController e SessaoController
-  app/services/      FilaService, LojaService, ContaService (cadastro, troca de senha), SessaoService (login, token), LimiteDeTentativas (contadores do limite) e exceções
+  app/services/      FilaService, LojaService, ContaService (cadastro, troca de senha), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
   app/models/        Estabelecimento, EntradaFila, Conta e Sessao
   app/middleware/    Cors, Autenticacao (token) e LojaDaConta (posse da loja)
   app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, Json
@@ -211,7 +235,7 @@ A hospedagem ainda não foi definida. O código não depende de nenhum provedor:
 ## Segurança e pendências
 
 - **O limite de tentativas cobre só login, cadastro e troca de senha** (ver [Limite de tentativas](#limite-de-tentativas)): não há limite de requisições em geral nem nas rotas públicas da fila. Atrás de proxy, configure `TRUSTED_PROXIES`, senão o limite por IP vale para todos juntos.
-- **Não há "esqueci a senha"** nem confirmação de e-mail: quem perde a senha perde o acesso, e qualquer pessoa pode cadastrar um e-mail ou CNPJ que não é dela.
+- **Não há confirmação de e-mail:** quem erra o e-mail no cadastro não recebe o link de "esqueci a senha" e perde o acesso, e qualquer pessoa pode cadastrar um e-mail ou CNPJ que não é dela. Além disso, o pedido de redefinição leva um pouco mais de tempo para e-mails com conta (o envio é síncrono), o que dá a um atacante paciente um jeito lento de descobrir contas; o limite por IP e por e-mail reduz isso.
 - **O token é um segredo:** quem o tiver age como a dona da loja por até 7 dias (ou até sair ou trocar a senha). O front o guarda em `sessionStorage`, legível por qualquer script da página.
 - **A loja `veste-bem` original não tem dono:** continua servindo a página pública da fila, mas ninguém a acessa pelo dashboard.
 - **O dígito verificador só pega erro de digitação:** não prova que o CNPJ é de quem se cadastra (isso depende de consulta à Receita ou de confirmação de e-mail, que não existem).

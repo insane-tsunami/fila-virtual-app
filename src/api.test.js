@@ -270,6 +270,58 @@ describe('api', () => {
       });
     });
 
+    it('pedirRedefinicao faz POST em /api/senha/esqueci só com o e-mail, sem token', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(202, { mensagem: 'ok' }));
+      const { pedirRedefinicao } = carregar('');
+
+      await expect(pedirRedefinicao('dona@exemplo.com')).resolves.toEqual({
+        mensagem: 'ok',
+      });
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/senha/esqueci');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBeUndefined();
+      expect(JSON.parse(opcoes.body)).toEqual({ email: 'dona@exemplo.com' });
+    });
+
+    it('redefinirSenha faz POST em /api/senha/redefinir com token e nova_senha', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(200, { mensagem: 'Senha alterada.' }));
+      const { redefinirSenha } = carregar('');
+
+      await redefinirSenha('tok-do-email', 'nova-12345');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/senha/redefinir');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBeUndefined();
+      expect(JSON.parse(opcoes.body)).toEqual({
+        token: 'tok-do-email',
+        nova_senha: 'nova-12345',
+      });
+    });
+
+    it('os erros 422 e 429 do esqueci a senha viram ApiError com a mensagem da API', async () => {
+      const { pedirRedefinicao, redefinirSenha, ApiError } = carregar('');
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(429, { erro: 'Muitas tentativas.' }));
+      await expect(pedirRedefinicao('a@b.com')).rejects.toMatchObject({
+        status: 429,
+        message: 'Muitas tentativas.',
+      });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(422, { erro: 'Link inválido.' }));
+      const falha = await redefinirSenha('x', 'y').catch((e) => e);
+      expect(falha).toBeInstanceOf(ApiError);
+      expect(falha.status).toBe(422);
+    });
+
     it('sair faz DELETE em /api/sessao e aceita a resposta 204 sem corpo', async () => {
       global.fetch = jest
         .fn()

@@ -28,7 +28,7 @@ return [
     ],
     // Origem única permitida para CORS. Vazia = sem cabeçalhos CORS.
     'cors_origin' => $env('CORS_ORIGIN'),
-    // Limite de tentativas: erros por e-mail/IP/conta na janela (minutos) e cadastros por IP.
+    // Limite de tentativas: erros por e-mail/IP/conta na janela (minutos), cadastros por IP e o "esqueci a senha".
     'rate_limit' => [
         'login_email' => $inteiro('RATE_LIMIT_LOGIN_EMAIL', 5),
         'login_ip' => $inteiro('RATE_LIMIT_LOGIN_IP', 20),
@@ -36,6 +36,19 @@ return [
         'janela_minutos' => $inteiro('RATE_LIMIT_JANELA_MIN', 15),
         'cadastro_ip' => $inteiro('RATE_LIMIT_CADASTRO_IP', 5),
         'cadastro_janela_minutos' => $inteiro('RATE_LIMIT_CADASTRO_JANELA_MIN', 60),
+        // "Esqueci a senha": pedidos por e-mail e por IP na janela própria; tokens inválidos por IP.
+        'esqueci_email' => $inteiro('RATE_LIMIT_ESQUECI_EMAIL', 3),
+        'esqueci_ip' => $inteiro('RATE_LIMIT_ESQUECI_IP', 10),
+        'esqueci_janela_minutos' => $inteiro('RATE_LIMIT_ESQUECI_JANELA_MIN', 60),
+        'redefinir_ip' => $inteiro('RATE_LIMIT_REDEFINIR_IP', 20),
+    ],
+    // Base dos links enviados por e-mail (sem barra final). Sem ela, o link não é montado.
+    'app_url' => rtrim($env('APP_URL'), '/'),
+    // E-mail: driver desligado (padrão), log (só desenvolvimento) ou smtp (MAIL_DSN e MAIL_FROM).
+    'mail' => [
+        'driver' => $env('MAIL_DRIVER', 'desligado'),
+        'dsn' => $env('MAIL_DSN'),
+        'from' => $env('MAIL_FROM'),
     ],
     // IPs ou faixas CIDR de proxies confiáveis, separados por vírgula (vazio = nenhum).
     'trusted_proxies' => array_values(array_filter(

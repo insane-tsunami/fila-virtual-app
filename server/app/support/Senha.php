@@ -13,6 +13,7 @@ final class Senha
     public const MINIMO_BYTES = 8;
     public const MAXIMO_BYTES = 72;
     public const CUSTO = 10;
+    public const MENSAGEM_INVALIDA = 'Senha inválida: use de 8 a 72 caracteres (letras acentuadas contam como 2).';
 
     // Hash fixo (mesmo custo) para gastar o mesmo tempo quando o e-mail não existe.
     private const HASH_FALSO = '$2y$10$BfrpEpL3q/5qzYien2EWAOfspp/MJYJnq9VZVU/meb5uXI87nmtvy';

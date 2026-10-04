@@ -14,9 +14,11 @@ context: |
   MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (nome, slug,
   endereco_publico, conta_id), contas (e-mail, CNPJ numérico ou alfanumérico com dígito verificador conferido e
   guardado em maiúsculas, hash da senha), sessoes
-  (hash do token, validade), limites_tentativas (contadores) e entradas_fila (migrações em
+  (hash do token, validade), limites_tentativas (contadores), redefinicoes_senha
+  (hash do token, 1 hora, uso único) e entradas_fila (migrações em
   server/database/migrations). Cada conta é dona de uma loja criada no cadastro.
   API pública: POST /api/contas (cadastro), POST /api/sessoes (login),
+  POST /api/senha/esqueci e POST /api/senha/redefinir (esqueci a senha),
   GET /api/filas/{slug} e as chamadas do cliente em /api/filas/{slug}/entradas.
   API com sessão (Authorization: Bearer <token>, 7 dias, token só como hash no
   banco): GET /api/conta, PUT /api/conta/senha, DELETE /api/sessao e, só para a
@@ -31,8 +33,13 @@ context: |
   (por IP) e troca de senha (por conta) respondem 429 com Retry-After; contadores
   na tabela limites_tentativas; IP pelo REMOTE_ADDR, X-Forwarded-For só atrás de
   TRUSTED_PROXIES; limites em RATE_LIMIT_*.
-  Pendências: avatar, confirmação de e-mail, "esqueci a senha". Node 16 fixado
-  para o front.
+  Esqueci a senha (specs password-recovery e email-delivery): o pedido responde
+  sempre 202 (com ou sem conta), o e-mail leva /redefinir-senha#token=... (token no
+  fragmento), redefinir encerra todas as sessões e não abre sessão. Envio por
+  MAIL_DRIVER (desligado por padrão, log só em desenvolvimento, smtp via
+  symfony/mailer com MAIL_DSN e MAIL_FROM); APP_URL é a base do link; limites em
+  RATE_LIMIT_ESQUECI_* e RATE_LIMIT_REDEFINIR_IP.
+  Pendências: avatar, confirmação de e-mail. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

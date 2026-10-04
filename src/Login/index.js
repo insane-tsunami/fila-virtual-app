@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useHistory, useLocation } from 'react-router-dom';
 
 import { makeStyles } from '@material-ui/core/styles';
 import TextField from '@material-ui/core/TextField';
@@ -33,10 +33,22 @@ const ERRO_REDE = 'Não foi possível falar com o servidor. Tente de novo.';
 export default function Login() {
   const classes = useStyles();
   const { entrar, aviso, falhaDeRede } = useSessao();
+  const history = useHistory();
+  const location = useLocation();
+  // Aviso vindo de outra tela (ex.: senha redefinida): mostrado uma vez e tirado do histórico.
+  const [avisoDaTela] = useState(
+    () => (location.state && location.state.aviso) || ''
+  );
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    if (location.state && location.state.aviso) {
+      history.replace({ pathname: location.pathname, state: undefined });
+    }
+  }, [history, location.pathname, location.state]);
 
   async function enviar(evento) {
     evento.preventDefault();
@@ -56,7 +68,8 @@ export default function Login() {
     }
   }
 
-  const mensagem = erro || aviso || (falhaDeRede ? ERRO_REDE : '');
+  const mensagem =
+    erro || avisoDaTela || aviso || (falhaDeRede ? ERRO_REDE : '');
 
   return (
     <>
@@ -109,6 +122,14 @@ export default function Login() {
                 Entrar
               </Button>
             </form>
+            <Button
+              component={Link}
+              to="/esqueci-senha"
+              color="secondary"
+              className={classes.margin}
+            >
+              Esqueci a senha
+            </Button>
             <Bottom>
               <p>Ainda não tem cadastro?</p>
               <Button
