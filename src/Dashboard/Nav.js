@@ -10,6 +10,8 @@ import Typography from '@material-ui/core/Typography';
 
 import { FaColumns, FaQrcode, FaCog, FaSignOutAlt } from 'react-icons/fa';
 
+import { apagarChave } from './chave';
+
 const useStyles = makeStyles((theme) => ({
   root: {
     display: 'flex',
@@ -60,7 +62,7 @@ export default function Nav() {
           Configurações
         </Typography>
       </MenuItem>
-      <MenuItem component={Link} to="/">
+      <MenuItem component={Link} to="/" onClick={apagarChave}>
         <ListItemIcon>
           <FaSignOutAlt fontSize="26px" />
         </ListItemIcon>

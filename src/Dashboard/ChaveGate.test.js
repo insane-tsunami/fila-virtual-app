@@ -164,6 +164,18 @@ describe('Rotas protegidas pela chave', () => {
     expect(u.queryByText('Dashboard', { selector: 'h1' })).toBeNull();
   });
 
+  it('depois de "Sair", voltar ao dashboard pede a chave de novo', () => {
+    guardarChave('segredo');
+    const u = abrir('/dashboard');
+    expect(u.queryByLabelText('Chave de acesso')).not.toBeInTheDocument();
+
+    fireEvent.click(u.getByText('Sair'));
+    u.unmount();
+
+    expect(lerChave()).toBeNull();
+    expect(abrir('/dashboard').getByLabelText('Chave de acesso')).toBeTruthy();
+  });
+
   it('/dashboard/perfil não pede a chave', () => {
     const u = abrir('/dashboard/perfil');
 

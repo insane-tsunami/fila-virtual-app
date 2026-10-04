@@ -27,6 +27,14 @@ O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` 
 - **Rotas do front:** a hospedagem precisa devolver o `index.html` para qualquer caminho (por exemplo `/fila/veste-bem`), senão o link do QRCode dá 404 ao abrir direto.
 - **Nunca** coloque a `X-API-Key` em variável `REACT_APP_*`: ela iria para o navegador de todos.
 
+### Chave de acesso do dashboard
+
+`/dashboard` e `/dashboard/qrcode` pedem uma **chave de acesso**: é o valor de `API_KEY` configurado no servidor (veja o [`server/README.md`](server/README.md)), que o dono digita ao abrir o dashboard.
+
+- A chave **nunca entra no pacote do front** e é guardada só no `sessionStorage`: fechar a aba a apaga, e "Sair" também.
+- Se o servidor trocar a `API_KEY`, o dashboard volta à tela de chave na próxima chamada recusada.
+- É uma proteção **provisória**, até existir login. Quem tiver a chave lista os telefones mascarados da fila e pode trocar o endereço do QR code; trate-a como senha.
+
 ### Verificações
 
 O CI (`.github/workflows/ci.yml`) roda estes comandos a cada push e pull request para `master`:

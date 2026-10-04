@@ -8,7 +8,7 @@
 ## 2. Tela de chave e "Sair"
 
 - [x] 2.1 Criar o `ChaveGate` (formulário "Chave de acesso" e "Entrar", validação pela listagem da fila, "Chave inválida.", mensagem de rede, retorno ao formulário quando a página avisa `401`) e envolver `/dashboard` e `/dashboard/qrcode` em `src/App.js`, deixando `/dashboard/perfil` de fora; verificar com testes dos cenários de `dashboard-access` (sem chave, chave correta, errada, API fora do ar, recarregar com chave, armazenamento bloqueado, perfil sem chave) e que `src/App.test.js` continua verde
-- [ ] 2.2 "Sair" em `src/Dashboard/Nav.js` apaga a chave e navega para `/`; verificar com teste de `Nav.test.js` (chave apagada e rota `/`) e com o cenário de voltar ao dashboard e ver a tela de chave; documentar no `README.md` a chave provisória do dashboard (de onde vem, que fica só na sessão e que nunca vai no build)
+- [x] 2.2 "Sair" em `src/Dashboard/Nav.js` apaga a chave e navega para `/`; verificar com teste de `Nav.test.js` (chave apagada e rota `/`) e com o cenário de voltar ao dashboard e ver a tela de chave; documentar no `README.md` a chave provisória do dashboard (de onde vem, que fica só na sessão e que nunca vai no build)
 
 ## 3. Nome da loja na barra lateral
 
