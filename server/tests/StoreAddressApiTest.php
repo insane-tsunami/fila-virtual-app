@@ -6,7 +6,7 @@ namespace Tests;
 
 use Psr\Http\Message\ResponseInterface;
 
-/** Cenários do spec store-address e os cenários novos da chave em queue-management. */
+/** Cenários do spec store-address (a posse da loja está em SessionApiTest). */
 final class StoreAddressApiTest extends ApiTestCase
 {
     private const LOJA = '/api/filas/veste-bem';
@@ -14,7 +14,7 @@ final class StoreAddressApiTest extends ApiTestCase
 
     private function definir(mixed $corpo, ?array $cabecalhos = null, array $config = []): ResponseInterface
     {
-        return $this->chamar('PUT', self::ENDERECO, $corpo, $cabecalhos ?? $this->comChave(), $config);
+        return $this->chamar('PUT', self::ENDERECO, $corpo, $cabecalhos ?? $this->comSessao(), $config);
     }
 
     private function enderecoNoBanco(): ?string
@@ -51,9 +51,9 @@ final class StoreAddressApiTest extends ApiTestCase
         $this->assertSame(404, $this->chamar('GET', '/api/filas/nao-existe')->getStatusCode());
     }
 
-    public function testConsultaFuncionaSemChaveMesmoComChaveNaoConfigurada(): void
+    public function testConsultaFuncionaSemSessao(): void
     {
-        $resposta = $this->chamar('GET', self::LOJA, null, [], ['api_key' => '']);
+        $resposta = $this->chamar('GET', self::LOJA);
 
         $this->assertSame(200, $resposta->getStatusCode());
     }
@@ -100,7 +100,7 @@ final class StoreAddressApiTest extends ApiTestCase
     public function testDefinirNaLojaInexistenteDevolve404(): void
     {
         $resposta = $this->chamar(
-            'PUT', '/api/filas/nao-existe/endereco', ['endereco_publico' => 'https://loja.exemplo.com'], $this->comChave()
+            'PUT', '/api/filas/nao-existe/endereco', ['endereco_publico' => 'https://loja.exemplo.com'], $this->comSessao()
         );
 
         $this->assertSame(404, $resposta->getStatusCode());
@@ -158,28 +158,17 @@ final class StoreAddressApiTest extends ApiTestCase
         $this->assertSame(400, $resposta->getStatusCode());
     }
 
-    // --- Chave provisória (queue-management) ------------------------------------------
+    // --- Sessão e posse da loja ---------------------------------------------------------
 
-    public function testDefinirSemChaveOuComChaveErradaDevolve401SemAlterarOEndereco(): void
+    public function testDefinirSemSessaoOuComSessaoInvalidaDevolve401SemAlterarOEndereco(): void
     {
         $this->definir(['endereco_publico' => 'https://anterior.exemplo.com']);
 
-        foreach ([[], ['X-API-Key' => 'errada'], ['X-API-Key' => '']] as $cabecalhos) {
+        foreach ([[], ['Authorization' => 'Bearer errado'], ['X-API-Key' => 'chave-antiga']] as $cabecalhos) {
             $resposta = $this->definir(['endereco_publico' => 'https://invasor.exemplo.com'], $cabecalhos);
 
             $this->assertSame(401, $resposta->getStatusCode(), json_encode($cabecalhos));
             $this->assertSame('https://anterior.exemplo.com', $this->enderecoNoBanco());
         }
-    }
-
-    public function testDefinirComChaveNaoConfiguradaNoServidorDevolve401(): void
-    {
-        foreach (['', self::CHAVE, 'qualquer'] as $enviada) {
-            $cabecalhos = $enviada === '' ? [] : ['X-API-Key' => $enviada];
-            $resposta = $this->definir(['endereco_publico' => 'https://loja.exemplo.com'], $cabecalhos, ['api_key' => '']);
-
-            $this->assertSame(401, $resposta->getStatusCode(), "chave enviada: '$enviada'");
-        }
-        $this->assertNull($this->enderecoNoBanco());
     }
 }

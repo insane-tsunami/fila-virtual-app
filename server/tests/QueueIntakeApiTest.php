@@ -13,7 +13,7 @@ final class QueueIntakeApiTest extends ApiTestCase
 
     private function finalizarPelaApi(string $codigo): void
     {
-        $resposta = $this->chamar('POST', self::ENTRADAS . "/$codigo/finalizar", null, $this->comChave());
+        $resposta = $this->chamar('POST', self::ENTRADAS . "/$codigo/finalizar", null, $this->comSessao());
         $this->assertSame(200, $resposta->getStatusCode());
     }
 

@@ -14,7 +14,7 @@ final class QueueManagementApiTest extends ApiTestCase
     /** @return list<array<string, mixed>> */
     private function listar(): array
     {
-        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comChave());
+        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comSessao());
         $this->assertSame(200, $resposta->getStatusCode());
 
         return $this->json($resposta);
@@ -22,7 +22,7 @@ final class QueueManagementApiTest extends ApiTestCase
 
     private function finalizar(string $codigo, array $cabecalhos = null): \Psr\Http\Message\ResponseInterface
     {
-        return $this->chamar('POST', self::ENTRADAS . "/$codigo/finalizar", null, $cabecalhos ?? $this->comChave());
+        return $this->chamar('POST', self::ENTRADAS . "/$codigo/finalizar", null, $cabecalhos ?? $this->comSessao());
     }
 
     /** @return list<string> */
@@ -37,48 +37,43 @@ final class QueueManagementApiTest extends ApiTestCase
     {
         $this->entrarPelaApi(1);
 
-        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comChave());
+        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comSessao());
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertCount(1, $this->json($resposta));
     }
 
-    public function testChaveAusenteOuErradaDevolve401SemDadosENaoAlteraNada(): void
+    public function testSessaoAusenteOuInvalidaDevolve401SemDadosENaoAlteraNada(): void
     {
         $entrada = $this->entrarPelaApi(1);
         $this->entrarPelaApi(2);
         $antes = $this->statusNoBanco();
 
-        foreach ([[], ['X-API-Key' => 'errada'], ['X-API-Key' => '']] as $cabecalhos) {
+        foreach ([
+            [],
+            ['Authorization' => 'Bearer token-que-nao-existe'],
+            ['Authorization' => 'Bearer '],
+            ['Authorization' => 'Basic abc'],
+            ['Authorization' => $this->comSessao()['Authorization'] . ' x'],
+            ['X-API-Key' => 'a-chave-antiga-nao-vale-mais'],
+        ] as $cabecalhos) {
             $lista = $this->chamar('GET', self::ENTRADAS, null, $cabecalhos);
             $this->assertSame(401, $lista->getStatusCode(), json_encode($cabecalhos));
-            $this->assertSame(['erro' => 'Chave de API ausente ou inválida.'], $this->json($lista));
+            $this->assertSame(['erro' => 'Autenticação ausente ou inválida.'], $this->json($lista));
             $this->assertStringNotContainsString('*****', (string) $lista->getBody());
 
             $final = $this->finalizar($entrada['codigo'], $cabecalhos);
             $this->assertSame(401, $final->getStatusCode(), json_encode($cabecalhos));
         }
 
-        $this->assertSame($antes, $this->statusNoBanco(), 'nada pode mudar sem a chave');
+        $this->assertSame($antes, $this->statusNoBanco(), 'nada pode mudar sem sessão');
     }
 
-    public function testChaveNaoConfiguradaNoServidorRecusaQualquerChave(): void
+    public function testChamadasDoClienteNaoExigemSessao(): void
     {
-        $this->entrarPelaApi(1);
-
-        foreach (['', self::CHAVE, 'qualquer'] as $enviada) {
-            $cabecalhos = $enviada === '' ? [] : ['X-API-Key' => $enviada];
-            $resposta = $this->chamar('GET', self::ENTRADAS, null, $cabecalhos, ['api_key' => '']);
-
-            $this->assertSame(401, $resposta->getStatusCode(), "chave enviada: '$enviada'");
-        }
-    }
-
-    public function testChamadasDoClienteNaoExigemAChave(): void
-    {
-        $entrada = $this->chamar('POST', self::ENTRADAS, ['telefone' => '11971778203'], [], ['api_key' => '']);
+        $entrada = $this->chamar('POST', self::ENTRADAS, ['telefone' => '11971778203']);
         $codigo = $this->json($entrada)['codigo'];
-        $consulta = $this->chamar('GET', self::ENTRADAS . "/$codigo", null, [], ['api_key' => '']);
+        $consulta = $this->chamar('GET', self::ENTRADAS . "/$codigo");
 
         $this->assertSame(201, $entrada->getStatusCode());
         $this->assertSame(200, $consulta->getStatusCode());
@@ -92,7 +87,7 @@ final class QueueManagementApiTest extends ApiTestCase
             $this->chamar('POST', self::ENTRADAS, ['telefone' => $telefone]);
         }
 
-        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comChave());
+        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comSessao());
         $lista = $this->json($resposta);
 
         $this->assertSame([1, 2, 3], array_column($lista, 'posicao'));
@@ -105,7 +100,7 @@ final class QueueManagementApiTest extends ApiTestCase
 
     public function testListagemDeFilaVaziaDevolveListaVaziaEm200(): void
     {
-        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comChave());
+        $resposta = $this->chamar('GET', self::ENTRADAS, null, $this->comSessao());
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame('[]', (string) $resposta->getBody());
@@ -122,7 +117,7 @@ final class QueueManagementApiTest extends ApiTestCase
 
     public function testListagemDeEstabelecimentoInexistenteDevolve404(): void
     {
-        $resposta = $this->chamar('GET', '/api/filas/nao-existe/entradas', null, $this->comChave());
+        $resposta = $this->chamar('GET', '/api/filas/nao-existe/entradas', null, $this->comSessao());
 
         $this->assertSame(404, $resposta->getStatusCode());
     }

@@ -115,29 +115,43 @@ final class ApiPlatformTest extends ApiTestCase
 
         $this->assertSame(204, $resposta->getStatusCode());
         $this->assertSame('https://front.exemplo.com', $resposta->getHeaderLine('Access-Control-Allow-Origin'));
-        $this->assertSame('GET, POST, PUT, OPTIONS', $resposta->getHeaderLine('Access-Control-Allow-Methods'));
-        $this->assertSame('Content-Type, X-API-Key', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
+        $this->assertSame('GET, POST, PUT, DELETE, OPTIONS', $resposta->getHeaderLine('Access-Control-Allow-Methods'));
+        $this->assertSame('Content-Type, Authorization', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
         $this->assertSame('', (string) $resposta->getBody());
     }
 
-    public function testPreflightDoPutDoEnderecoResponde204AnunciandoPutEACabecalhoDaChave(): void
+    public function testPreflightDoPutDoEnderecoResponde204AnunciandoPutEAutorizacao(): void
     {
         $resposta = $this->chamar('OPTIONS', '/api/filas/veste-bem/endereco', null, [
             'Origin' => 'https://front.exemplo.com',
             'Access-Control-Request-Method' => 'PUT',
-            'Access-Control-Request-Headers' => 'content-type,x-api-key',
+            'Access-Control-Request-Headers' => 'content-type,authorization',
         ], ['cors_origin' => 'https://front.exemplo.com']);
 
         $this->assertSame(204, $resposta->getStatusCode());
         $this->assertContains('PUT', array_map('trim', explode(',', $resposta->getHeaderLine('Access-Control-Allow-Methods'))));
-        $this->assertStringContainsString('X-API-Key', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
+        $this->assertStringContainsString('Authorization', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
+        $this->assertStringNotContainsString('X-API-Key', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
+    }
+
+    public function testPreflightDoDeleteDaSessaoResponde204AnunciandoDelete(): void
+    {
+        $resposta = $this->chamar('OPTIONS', '/api/sessao', null, [
+            'Origin' => 'https://front.exemplo.com',
+            'Access-Control-Request-Method' => 'DELETE',
+            'Access-Control-Request-Headers' => 'authorization',
+        ], ['cors_origin' => 'https://front.exemplo.com']);
+
+        $this->assertSame(204, $resposta->getStatusCode());
+        $this->assertContains('DELETE', array_map('trim', explode(',', $resposta->getHeaderLine('Access-Control-Allow-Methods'))));
+        $this->assertStringContainsString('Authorization', $resposta->getHeaderLine('Access-Control-Allow-Headers'));
     }
 
     public function testRespostaDoPutDoEnderecoTambemLevaCors(): void
     {
         $resposta = $this->chamar(
             'PUT', '/api/filas/veste-bem/endereco', ['endereco_publico' => 'https://loja.exemplo.com'],
-            ['X-API-Key' => self::CHAVE], ['cors_origin' => 'https://front.exemplo.com']
+            $this->comSessao(), ['cors_origin' => 'https://front.exemplo.com']
         );
 
         $this->assertSame(200, $resposta->getStatusCode());
