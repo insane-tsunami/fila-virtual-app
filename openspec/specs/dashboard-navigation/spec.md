@@ -20,9 +20,13 @@ Todas as páginas do dashboard SHALL exibir um menu com os itens "Dashboard", "G
 - **WHEN** o estabelecimento aciona um item do menu
 - **THEN** a aplicação navega para a rota associada ao item
 
-### Requirement: Sair sem sessão (estado atual)
-Enquanto não houver autenticação, "Sair" MUST apenas navegar para a página inicial, sem encerrar sessão nem limpar dados.
+### Requirement: Sair encerra o acesso ao dashboard
+Ao acionar "Sair", o dashboard SHALL apagar a chave de acesso guardada e navegar para a página inicial `/`. Voltar ao dashboard depois disso SHALL pedir a chave de novo.
 
 #### Scenario: Acionar "Sair"
 - **WHEN** o estabelecimento aciona "Sair"
-- **THEN** a aplicação navega para `/` e nenhum dado é apagado
+- **THEN** a chave guardada é apagada e a aplicação navega para `/`
+
+#### Scenario: Voltar depois de sair
+- **WHEN** o estabelecimento acessa `/dashboard` depois de acionar "Sair"
+- **THEN** a tela de chave é exibida
