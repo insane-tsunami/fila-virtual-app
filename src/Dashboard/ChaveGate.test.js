@@ -176,8 +176,9 @@ describe('Rotas protegidas pela chave', () => {
     expect(abrir('/dashboard').getByLabelText('Chave de acesso')).toBeTruthy();
   });
 
-  it('/dashboard/perfil não pede a chave', () => {
+  it('/dashboard/perfil não pede a chave', async () => {
     const u = abrir('/dashboard/perfil');
+    await act(async () => {});
 
     expect(u.queryByLabelText('Chave de acesso')).not.toBeInTheDocument();
     expect(u.getByText('Perfil', { selector: 'h1' })).toBeInTheDocument();

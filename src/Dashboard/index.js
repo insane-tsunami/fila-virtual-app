@@ -17,7 +17,7 @@ import {
 } from './styles';
 
 import Nav from './Nav';
-import { nome, inicial } from './estabelecimento';
+import useLoja from './useLoja';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -114,6 +114,7 @@ const initialClients = [
 
 export default function Dashboard() {
   const classes = useStyles();
+  const { nome, inicial } = useLoja();
   const [clients, setClients] = useState(initialClients);
 
   function handleEndService() {

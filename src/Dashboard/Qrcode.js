@@ -17,7 +17,8 @@ import {
 
 import Nav from './Nav';
 import { buscarLoja } from '../api';
-import { nome, inicial, slug } from './estabelecimento';
+import { slug } from './estabelecimento';
+import useLoja from './useLoja';
 
 const useStyles = makeStyles(() => ({
   title: {
@@ -48,6 +49,7 @@ const useStyles = makeStyles(() => ({
 
 export default function QrCode() {
   const classes = useStyles();
+  const { nome, inicial } = useLoja();
   const [url, setUrl] = useState('');
   const [erro, setErro] = useState(false);
   const [gerando, setGerando] = useState(false);

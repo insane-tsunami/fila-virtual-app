@@ -1,15 +1,18 @@
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 
 import Perfil from './Perfil';
 
-function renderPerfil() {
-  return render(
+async function renderPerfil() {
+  const utils = render(
     <MemoryRouter>
       <Perfil />
     </MemoryRouter>
   );
+  // deixa a barra lateral terminar de buscar o nome da loja
+  await act(async () => {});
+  return utils;
 }
 
 describe('Configurações do estabelecimento', () => {
@@ -17,7 +20,13 @@ describe('Configurações do estabelecimento', () => {
   let fetchSpy;
 
   beforeEach(() => {
-    fetchSpy = jest.fn();
+    fetchSpy = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ nome: 'Veste Bem' }),
+      })
+    );
     window.fetch = fetchSpy;
   });
 
@@ -25,8 +34,8 @@ describe('Configurações do estabelecimento', () => {
     window.fetch = originalFetch;
   });
 
-  it('exibe e-mail e CNPJ somente leitura com as mensagens', () => {
-    const { getByLabelText, getByText } = renderPerfil();
+  it('exibe e-mail e CNPJ somente leitura com as mensagens', async () => {
+    const { getByLabelText, getByText } = await renderPerfil();
 
     expect(getByLabelText('E-mail')).toHaveAttribute('readonly');
     expect(getByLabelText('E-mail').value).not.toBe('');
@@ -36,8 +45,8 @@ describe('Configurações do estabelecimento', () => {
     expect(getByText('Não é possivel alterar o CNPJ')).toBeInTheDocument();
   });
 
-  it('oferece nova senha mascarada, seletor só de imagens e "Atualizar"', () => {
-    const { getByLabelText, getByText } = renderPerfil();
+  it('oferece nova senha mascarada, seletor só de imagens e "Atualizar"', async () => {
+    const { getByLabelText, getByText } = await renderPerfil();
 
     expect(getByLabelText('Nova Senha')).toHaveAttribute('type', 'password');
     expect(getByLabelText('Confirme a nova senha')).toHaveAttribute(
@@ -51,10 +60,13 @@ describe('Configurações do estabelecimento', () => {
     expect(getByText('Atualizar')).toBeInTheDocument();
   });
 
-  it('não envia nada nem altera os dados ao acionar "Atualizar"', () => {
-    const { getByLabelText, getByText } = renderPerfil();
+  it('não envia nada nem altera os dados ao acionar "Atualizar"', async () => {
+    const { getByLabelText, getByText } = await renderPerfil();
     const email = getByLabelText('E-mail').value;
     const cnpj = getByLabelText('CNPJ').value;
+    // a barra lateral consulta o nome da loja ao montar; "Atualizar" não pode
+    // gerar nenhuma requisição além dessa
+    fetchSpy.mockClear();
 
     fireEvent.change(getByLabelText('Nova Senha'), {
       target: { value: 'nova-senha' },

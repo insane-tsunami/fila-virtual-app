@@ -12,7 +12,7 @@
 
 ## 3. Nome da loja na barra lateral
 
-- [ ] 3.1 Criar o hook `useLoja` (nome e inicial vindos de `buscarLoja`, com o nome fixo de reserva) e usá-lo na barra lateral de `index.js`, `Qrcode.js` e `Perfil.js`; verificar com testes: nome da API nas três páginas, reserva enquanto carrega e quando a API falha, e que os testes de `Perfil.test.js` e `Nav.test.js` seguem verdes
+- [x] 3.1 Criar o hook `useLoja` (nome e inicial vindos de `buscarLoja`, com o nome fixo de reserva) e usá-lo na barra lateral de `index.js`, `Qrcode.js` e `Perfil.js`; verificar com testes: nome da API nas três páginas, reserva enquanto carrega e quando a API falha, e que os testes de `Perfil.test.js` e `Nav.test.js` seguem verdes
 
 ## 4. Dashboard com fila real
 
