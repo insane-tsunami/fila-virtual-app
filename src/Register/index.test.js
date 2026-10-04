@@ -179,6 +179,22 @@ describe('Cadastro do estabelecimento', () => {
     expect(u.getByLabelText('CNPJ')).toBeInTheDocument();
   });
 
+  it('429 (limite de tentativas): mostra a mensagem e mantém os dados', async () => {
+    api.cadastrar.mockRejectedValue(
+      new api.ApiError(429, 'Muitas tentativas. Tente de novo em 15 minutos.')
+    );
+    const u = renderRegister();
+    await esvaziar();
+
+    preencher(u, { 'E-mail': 'a@exemplo.com' });
+    await enviar(u);
+
+    expect(
+      u.getByText('Muitas tentativas. Tente de novo em 15 minutos.')
+    ).toBeInTheDocument();
+    expect(u.getByLabelText('E-mail').value).toBe('a@exemplo.com');
+  });
+
   it('CNPJ digitado em minúsculas aparece em maiúsculas no campo', async () => {
     const u = renderRegister();
     await esvaziar();

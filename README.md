@@ -35,7 +35,8 @@ Cada estabelecimento tem a sua conta. **`/cadastro`** cria a conta e a loja junt
 - Se a API recusar o token (vencido ou encerrado), o dashboard volta ao login com o aviso "Sua sessão expirou. Entre de novo.".
 - O **slug da loja** sai do nome no cadastro (`Moda Azul` vira `moda-azul`) e é o que vai no link do QR code. O **endereço público** da loja se define na página "Gerar QRCode", no campo "Endereço público da loja": só a origem do site, como `https://loja.exemplo.com`. Vazio usa o endereço da própria página do dashboard, que pode não ser o público (por exemplo, `localhost`).
 - A loja `veste-bem` que veio do primeiro banco **não tem dono**: a página pública dela funciona, mas ninguém a acessa pelo dashboard.
-- Pendências conhecidas (veja o [`server/README.md`](server/README.md)): sem limite de tentativas de login e de cadastro, sem "esqueci a senha" e sem confirmação de e-mail.
+- **Limite de tentativas:** depois de 5 erros de senha no mesmo e-mail (ou 20 vindos do mesmo IP) em 15 minutos, o login é bloqueado por até 15 minutos; o cadastro aceita 5 tentativas por hora por IP e a troca de senha bloqueia a conta depois de 5 senhas atuais erradas. A tela mostra a mensagem da API ("Muitas tentativas. Tente de novo em N minutos."). Atrás de proxy, a API precisa de `TRUSTED_PROXIES` para enxergar o IP real (detalhes e números no [`server/README.md`](server/README.md)).
+- Pendências conhecidas (veja o [`server/README.md`](server/README.md)): sem "esqueci a senha" e sem confirmação de e-mail.
 
 ### Verificações
 
@@ -80,4 +81,4 @@ O contexto do projeto (stack, rotas, regras) está em `openspec/config.yaml`. Se
 
 O backend (PHP 8.3 ou mais novo) está em `server/`. Como instalar, configurar, migrar o banco, rodar e testar está no [`server/README.md`](server/README.md).
 
-A configuração vem de variáveis de ambiente (`DB_DRIVER`, `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CORS_ORIGIN`); use `server/.env.example` como modelo e nunca commite segredos.
+A configuração vem de variáveis de ambiente (`DB_DRIVER`, `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CORS_ORIGIN`, `TRUSTED_PROXIES` e `RATE_LIMIT_*`); use `server/.env.example` como modelo e nunca commite segredos.

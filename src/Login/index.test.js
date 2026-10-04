@@ -169,6 +169,23 @@ describe('Login do estabelecimento', () => {
     expect(u.queryByText(/sessão expirou/)).not.toBeInTheDocument();
   });
 
+  it('429 (limite de tentativas): mostra a mensagem e continua no login', async () => {
+    api.entrar.mockRejectedValue(
+      new api.ApiError(429, 'Muitas tentativas. Tente de novo em 15 minutos.')
+    );
+    const u = renderLogin();
+    await esvaziar();
+
+    await preencherEEnviar(u, 'loja@exemplo.com', 'senha-segura-1');
+
+    expect(
+      u.getByText('Muitas tentativas. Tente de novo em 15 minutos.')
+    ).toBeInTheDocument();
+    expect(u.queryByText(REDE)).not.toBeInTheDocument();
+    expect(u.getByLabelText('E-mail').value).toBe('loja@exemplo.com');
+    expect(u.queryByText(/rota:/)).not.toBeInTheDocument();
+  });
+
   it('campos em branco: mensagem e nenhuma requisição', async () => {
     const u = renderLogin();
     await esvaziar();

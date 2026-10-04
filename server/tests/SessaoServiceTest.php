@@ -6,6 +6,8 @@ namespace Tests;
 
 use Services\ContaService;
 use Services\DadosInvalidosException;
+use Services\LimiteDeTentativas;
+use Services\LimiteExcedidoException;
 use Services\NaoAutenticadoException;
 use Services\SessaoService;
 
@@ -129,5 +131,22 @@ final class SessaoServiceTest extends DatabaseTestCase
         $this->assertSame(1, $this->db->table('sessoes')->count());
         $this->assertNull($this->sessoes->resolver($velha['token']));
         $this->assertNotNull($this->sessoes->resolver($nova['token']));
+    }
+
+    public function testComLimiteOQuintoErroBloqueiaESenhaCertaNaoEntra(): void
+    {
+        $sessoes = new SessaoService(new LimiteDeTentativas([
+            LimiteDeTentativas::LOGIN_EMAIL => ['max' => 2, 'janela' => 900],
+            LimiteDeTentativas::LOGIN_IP => ['max' => 10, 'janela' => 900],
+        ]));
+        for ($i = 0; $i < 2; $i++) {
+            try {
+                $sessoes->entrar('contato@vestebem.com', 'errada-errada', '198.51.100.7');
+            } catch (NaoAutenticadoException) {
+            }
+        }
+
+        $this->expectException(LimiteExcedidoException::class);
+        $sessoes->entrar('contato@vestebem.com', 'senha-segura-1', '198.51.100.7');
     }
 }

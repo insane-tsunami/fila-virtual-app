@@ -10,6 +10,7 @@ use Models\Conta;
 use Models\Estabelecimento;
 use Support\Cnpj;
 use Support\Email;
+use Support\IpDoCliente;
 use Support\Senha;
 use Support\Slug;
 
@@ -20,7 +21,10 @@ final class ContaService
     private const NOME_MAXIMO = 120;
     private const TENTATIVAS_DE_SLUG = 50;
 
-    public function __construct(private readonly SessaoService $sessoes)
+    public function __construct(
+        private readonly SessaoService $sessoes,
+        private readonly ?LimiteDeTentativas $limite = null,
+    )
     {
     }
 
@@ -30,8 +34,11 @@ final class ContaService
      * @param array<mixed> $corpo
      * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
      */
-    public function cadastrar(array $corpo): array
+    public function cadastrar(array $corpo, string $ip = IpDoCliente::DESCONHECIDO): array
     {
+        // Toda chamada conta (inclusive as recusadas por 409/422): o risco é volume e o 409 revela contas.
+        $this->limite?->consumir(LimiteDeTentativas::CADASTRO_IP, LimiteDeTentativas::chave($ip));
+
         foreach (['email', 'cnpj', 'nome', 'senha'] as $campo) {
             if (!array_key_exists($campo, $corpo)) {
                 throw new DadosInvalidosException('Informe e-mail, cnpj, nome e senha.');
@@ -107,8 +114,13 @@ final class ContaService
             throw new DadosInvalidosException('Informe senha_atual e nova_senha.');
         }
 
+        $chave = LimiteDeTentativas::chave($contaId);
+        $this->limite?->verificar(LimiteDeTentativas::SENHA_CONTA, $chave);
+
         $conta = Conta::query()->find($contaId) ?? throw new NaoEncontradoException('Conta não encontrada.');
         if (!Senha::confere($atual, $conta->senha_hash)) {
+            $this->limite?->registrar(LimiteDeTentativas::SENHA_CONTA, $chave);
+
             throw new DadosInvalidosException('Senha atual incorreta.');
         }
         if (!Senha::valida($nova)) {
@@ -121,6 +133,7 @@ final class ContaService
             $conta->update(['senha_hash' => Senha::gerarHash($nova)]);
             $this->sessoes->encerrarOutras($conta->id, $sessaoId);
         });
+        $this->limite?->zerar(LimiteDeTentativas::SENHA_CONTA, $chave);
     }
 
     /** Cria a loja da conta com o primeiro slug livre (`base`, `base-2`, `base-3`...). */
