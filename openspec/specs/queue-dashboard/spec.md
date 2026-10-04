@@ -53,22 +53,6 @@ O dashboard SHALL tratar a fila vazia ou sem clientes aguardando exibindo apenas
 - **WHEN** a fila tem somente o cliente em atendimento
 - **THEN** o painel "Fila" exibe a mensagem "Fila vazia" abaixo desse cliente
 
-### Requirement: Identificação do estabelecimento
-Todas as páginas do dashboard SHALL exibir, na barra lateral, a inicial e o nome do mesmo estabelecimento, com o avatar no tamanho padrão da barra. O nome SHALL vir dos dados públicos da loja na API; enquanto a API não respondeu ou se ela falhar, SHALL ser exibido o nome fixo de reserva.
-
-#### Scenario: Navegação entre páginas do dashboard
-- **WHEN** o estabelecimento navega entre Dashboard, Gerar QRCODE e Configurações
-- **THEN** a barra lateral mostra o mesmo nome e a mesma inicial em todas as páginas
-- **AND** o avatar tem o mesmo tamanho em todas elas
-
-#### Scenario: Nome vindo da API
-- **WHEN** a API informa o nome da loja
-- **THEN** a barra lateral mostra esse nome e a inicial dele
-
-#### Scenario: API fora do ar
-- **WHEN** a API não responde aos dados da loja
-- **THEN** a barra lateral mostra o nome fixo de reserva e a página continua utilizável
-
 ### Requirement: Atualização automática da fila
 Enquanto o dashboard estiver aberto, ele SHALL consultar a fila na API a cada 5 segundos e atualizar o que mostra, sem iniciar uma consulta enquanto a anterior ainda não terminou, e SHALL parar de consultar ao sair da página.
 
@@ -95,3 +79,19 @@ Se a consulta da fila falhar por falta de resposta da API, o dashboard SHALL man
 #### Scenario: Primeira carga sem resposta
 - **WHEN** a primeira consulta da fila falha
 - **THEN** o dashboard mostra o aviso de falha, não mostra clientes e tenta de novo na consulta seguinte
+
+### Requirement: Identificação da loja da conta
+Todas as páginas do dashboard SHALL exibir, na barra lateral, a inicial e o nome da loja da conta logada, com o avatar no tamanho padrão da barra. O dashboard MUST NOT usar um nome de loja fixo no código.
+
+#### Scenario: Navegação entre páginas do dashboard
+- **WHEN** a dona navega entre Dashboard, Gerar QRCODE e Configurações
+- **THEN** a barra lateral mostra o mesmo nome e a mesma inicial em todas as páginas
+- **AND** o avatar tem o mesmo tamanho em todas elas
+
+#### Scenario: Nome da loja da conta
+- **WHEN** a dona da loja `Moda Azul` abre o dashboard
+- **THEN** a barra lateral mostra `Moda Azul` e a inicial `M`
+
+#### Scenario: Contas diferentes, lojas diferentes
+- **WHEN** duas contas com lojas diferentes entram uma depois da outra no mesmo navegador
+- **THEN** cada uma vê apenas o nome, a fila e o QR code da própria loja
