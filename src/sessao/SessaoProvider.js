@@ -37,7 +37,8 @@ export function SessaoProvider({ children }) {
   const [falhaDeRede, setFalhaDeRede] = useState(false);
   const { estado, token, conta, loja } = sessao;
 
-  // Ao abrir a página com um token guardado, confirma a sessão na API.
+  // Ao abrir a página com um token guardado, confirma a sessão na API (só o estado
+  // 'restaurando', que existe apenas na abertura, dispara a chamada).
   useEffect(() => {
     if (estado !== 'restaurando') return undefined;
     let cancelado = false;
@@ -70,8 +71,7 @@ export function SessaoProvider({ children }) {
     return () => {
       cancelado = true;
     };
-    // só roda na restauração inicial
-  }, []);
+  }, [estado, token]);
 
   const abrir = useCallback((dados) => {
     guardarToken(dados.token);
