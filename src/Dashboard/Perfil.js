@@ -16,7 +16,7 @@ import {
 } from './styles';
 
 import Nav from './Nav';
-import { nome, inicial } from './estabelecimento';
+import useLoja from './useLoja';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -41,6 +41,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Perfil() {
   const classes = useStyles();
+  const { nome, inicial } = useLoja();
   return (
     <Wrapper>
       <BarNavigation>

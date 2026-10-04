@@ -115,4 +115,84 @@ describe('api', () => {
       status: 200,
     });
   });
+
+  describe('chamadas protegidas', () => {
+    it('listarFila envia a chave e não envia corpo', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(200, []));
+      const { listarFila } = carregar('');
+
+      await expect(listarFila('veste-bem', 'segredo')).resolves.toEqual([]);
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/filas/veste-bem/entradas');
+      expect(opcoes.method).toBe('GET');
+      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+      expect(opcoes.body).toBeUndefined();
+      expect(opcoes.headers['Content-Type']).toBeUndefined();
+    });
+
+    it('finalizarEntrada faz POST no código com a chave', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(200, { atual: null }));
+      const { finalizarEntrada } = carregar('');
+
+      await finalizarEntrada('veste-bem', 'abc', 'segredo');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/filas/veste-bem/entradas/abc/finalizar');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+    });
+
+    it('definirEndereco faz PUT em JSON com a chave, inclusive texto vazio', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(200, {}));
+      const { definirEndereco } = carregar('');
+
+      await definirEndereco('veste-bem', '', 'segredo');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/filas/veste-bem/endereco');
+      expect(opcoes.method).toBe('PUT');
+      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+      expect(opcoes.headers['Content-Type']).toBe('application/json');
+      expect(JSON.parse(opcoes.body)).toEqual({ endereco_publico: '' });
+    });
+
+    it('as chamadas públicas não enviam a chave', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(200, {}));
+      const { buscarLoja, consultarEntrada } = carregar('');
+
+      await buscarLoja('veste-bem');
+      await consultarEntrada('veste-bem', 'abc');
+      global.fetch.mock.calls.forEach(([, opcoes]) => {
+        expect(opcoes.headers['X-API-Key']).toBeUndefined();
+      });
+    });
+
+    it('401, 409 e 422 trazem status e mensagem', async () => {
+      const { listarFila, finalizarEntrada, definirEndereco } = carregar('');
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(401, { erro: 'Chave inválida' }));
+      await expect(listarFila('x', 'k')).rejects.toMatchObject({
+        status: 401,
+        message: 'Chave inválida',
+      });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(409, { erro: 'Não está em atendimento' }));
+      await expect(finalizarEntrada('x', 'c', 'k')).rejects.toMatchObject({
+        status: 409,
+        message: 'Não está em atendimento',
+      });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(422, { erro: 'Endereço inválido' }));
+      await expect(definirEndereco('x', 'ftp://a', 'k')).rejects.toMatchObject({
+        status: 422,
+        message: 'Endereço inválido',
+      });
+    });
+  });
 });
