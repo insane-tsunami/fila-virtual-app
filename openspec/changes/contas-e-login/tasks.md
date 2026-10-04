@@ -2,8 +2,8 @@
 
 ## 1. Dados e regras puras (backend)
 
-- [ ] 1.1 Criar a migração `0005` (tabelas `contas` e `sessoes`; `estabelecimentos.conta_id` nulo e único, sem chave estrangeira) e os modelos `Conta` e `Sessao` (e o `@property conta_id` em `Estabelecimento`); verificar em `tests/MigrationTest.php` (SQLite e MySQL): 5 migrações, colunas e índices únicos (`email`, `cnpj`, `token_hash`, `conta_id`) recusando duplicata, e que a atualização a partir da `0004` mantém `veste-bem` com `conta_id` nulo
-- [ ] 1.2 Criar `Support\Email::normalizar`, `Support\Cnpj::normalizar` e `Support\Slug::deNome`; verificar com testes por tabela: e-mail em maiúsculas e com espaços, formato inválido e mais de 254 caracteres; CNPJ com e sem máscara e fora de 14 dígitos; slug de `Moda & Cia São João` = `moda-cia-sao-joao`, nome só de símbolos recusado, corte em 80 caracteres sem hífen na ponta
+- [x] 1.1 Criar a migração `0005` (tabelas `contas` e `sessoes`; `estabelecimentos.conta_id` nulo e único, sem chave estrangeira) e os modelos `Conta` e `Sessao` (e o `@property conta_id` em `Estabelecimento`); verificar em `tests/MigrationTest.php` (SQLite e MySQL): 5 migrações, colunas e índices únicos (`email`, `cnpj`, `token_hash`, `conta_id`) recusando duplicata, e que a atualização a partir da `0004` mantém `veste-bem` com `conta_id` nulo
+- [x] 1.2 Criar `Support\Email::normalizar`, `Support\Cnpj::normalizar` e `Support\Slug::deNome`; verificar com testes por tabela: e-mail em maiúsculas e com espaços, formato inválido e mais de 254 caracteres; CNPJ com e sem máscara e fora de 14 dígitos; slug de `Moda & Cia São João` = `moda-cia-sao-joao`, nome só de símbolos recusado, corte em 80 caracteres sem hífen na ponta
 
 ## 2. Contas, sessão e rotas protegidas (backend)
 

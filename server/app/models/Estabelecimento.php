@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $nome
  * @property string $slug
  * @property string|null $endereco_publico
+ * @property int|null $conta_id
  */
 final class Estabelecimento extends Model
 {
