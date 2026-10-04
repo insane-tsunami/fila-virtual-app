@@ -38,6 +38,7 @@ final class Cors implements MiddlewareInterface
 
         return $resposta
             ->withHeader('Access-Control-Allow-Origin', $this->origem)
+            ->withHeader('Access-Control-Expose-Headers', 'Retry-After')
             ->withHeader('Vary', 'Origin');
     }
 }

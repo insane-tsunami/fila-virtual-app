@@ -19,6 +19,8 @@ use Services\ConflitoException;
 use Services\ContaService;
 use Services\DadosInvalidosException;
 use Services\FilaService;
+use Services\LimiteDeTentativas;
+use Services\LimiteExcedidoException;
 use Services\LojaService;
 use Services\NaoAutenticadoException;
 use Services\NaoEncontradoException;
@@ -51,9 +53,14 @@ final class Aplicacao
         $cliente = new ClienteController($fila);
         $dashboard = new DashboardController($fila);
         $loja = new LojaController(new LojaService());
-        $sessoes = new SessaoService();
-        $conta = new ContaController(new ContaService($sessoes));
-        $sessao = new SessaoController($sessoes);
+        // Sem a seção `rate_limit` na configuração não há limite (os testes que não tratam dele).
+        $limite = isset($config['rate_limit'])
+            ? LimiteDeTentativas::daConfig($config['rate_limit'], $logger)
+            : null;
+        $proxies = $config['trusted_proxies'] ?? [];
+        $sessoes = new SessaoService($limite);
+        $conta = new ContaController(new ContaService($sessoes, $limite), $proxies);
+        $sessao = new SessaoController($sessoes, $proxies);
         $autenticada = new Autenticacao($sessoes);
         $daLoja = new LojaDaConta();
 
@@ -94,6 +101,7 @@ final class Aplicacao
                 $erro instanceof ConflitoException => [409, $erro->getMessage()],
                 $erro instanceof NaoAutenticadoException => [401, $erro->getMessage()],
                 $erro instanceof AcessoNegadoException => [403, $erro->getMessage()],
+                $erro instanceof LimiteExcedidoException => [429, $erro->getMessage()],
                 $erro instanceof HttpNotFoundException => [404, 'Rota não encontrada.'],
                 $erro instanceof HttpMethodNotAllowedException => [405, 'Método não permitido.'],
                 $erro instanceof HttpUnauthorizedException => [401, 'Autenticação ausente ou inválida.'],
@@ -108,9 +116,13 @@ final class Aplicacao
 
             $resposta = Json::erro((new ResponseFactory())->createResponse(), $status, $mensagem);
 
-            return $erro instanceof HttpMethodNotAllowedException
-                ? $resposta->withHeader('Allow', implode(', ', $erro->getAllowedMethods()))
-                : $resposta;
+            return match (true) {
+                $erro instanceof HttpMethodNotAllowedException
+                    => $resposta->withHeader('Allow', implode(', ', $erro->getAllowedMethods())),
+                $erro instanceof LimiteExcedidoException
+                    => $resposta->withHeader('Retry-After', (string) $erro->segundos),
+                default => $resposta,
+            };
         };
     }
 }

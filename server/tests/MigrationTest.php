@@ -24,6 +24,7 @@ final class MigrationTest extends DatabaseTestCase
             '0003_seed_estabelecimento_veste_bem',
             '0004_add_endereco_publico_to_estabelecimentos',
             '0005_create_contas_e_sessoes',
+            '0006_create_limites_tentativas',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -46,6 +47,21 @@ final class MigrationTest extends DatabaseTestCase
             'id', 'estabelecimento_id', 'codigo', 'telefone', 'status',
             'entrou_em', 'iniciou_em', 'finalizou_em',
         ]));
+    }
+
+    public function testCriaATabelaDeLimitesDeTentativasComChaveComposta(): void
+    {
+        $this->migrate();
+        $tabela = $this->db->table('limites_tentativas');
+
+        $this->assertTrue($this->db->schema()->hasColumns('limites_tentativas', ['escopo', 'chave', 'contagem', 'expira_em']));
+
+        $linha = ['escopo' => 'login_email', 'chave' => str_repeat('a', 64), 'contagem' => 1, 'expira_em' => '2030-01-01 00:00:00'];
+        $tabela->insert($linha);
+        $tabela->insert(['escopo' => 'login_ip'] + $linha);
+
+        $this->expectException(QueryException::class);
+        $tabela->insert($linha);
     }
 
     public function testCriaAsTabelasDeContasESessoes(): void
@@ -161,7 +177,7 @@ final class MigrationTest extends DatabaseTestCase
 
         $executadas = $this->migrator()->run();
 
-        $this->assertSame(['0005_create_contas_e_sessoes'], $executadas);
+        $this->assertSame(['0005_create_contas_e_sessoes', '0006_create_limites_tentativas'], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
         $this->assertNull($loja->conta_id);
         $this->assertSame('https://loja.exemplo.com', $loja->endereco_publico);
@@ -186,6 +202,7 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertSame([
             '0004_add_endereco_publico_to_estabelecimentos',
             '0005_create_contas_e_sessoes',
+            '0006_create_limites_tentativas',
         ], $executadas);
         $this->assertSame(2, $this->db->table('estabelecimentos')->count(), 'as linhas existentes continuam');
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'outra-loja')->value('endereco_publico'));

@@ -9,6 +9,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Services\ConflitoException;
 use Services\ContaService;
 use Services\DadosInvalidosException;
+use Services\LimiteDeTentativas;
+use Services\LimiteExcedidoException;
 use Services\SessaoService;
 
 final class ContaServiceTest extends DatabaseTestCase
@@ -347,5 +349,25 @@ final class ContaServiceTest extends DatabaseTestCase
         $this->contas->trocarSenha($conta, $sessao, ['senha_atual' => 'senha-segura-1', 'nova_senha' => 'nova-senha-2']);
 
         $this->assertNotNull($this->sessoes->resolver($b['token']));
+    }
+
+    public function testComLimiteOCadastroDoMesmoIpEhBloqueadoSemCriarConta(): void
+    {
+        $contas = new ContaService($this->sessoes, new LimiteDeTentativas([
+            LimiteDeTentativas::CADASTRO_IP => ['max' => 1, 'janela' => 3600],
+        ]));
+        try {
+            $contas->cadastrar([], '198.51.100.7');
+        } catch (DadosInvalidosException) {
+        }
+
+        try {
+            $contas->cadastrar([
+                'email' => 'novo@exemplo.com', 'cnpj' => '93339970000105', 'nome' => 'Loja Nova', 'senha' => 'senha-segura-1',
+            ], '198.51.100.7');
+            $this->fail('o segundo cadastro devia ser bloqueado');
+        } catch (LimiteExcedidoException) {
+            $this->assertSame(0, $this->db->table('contas')->count());
+        }
     }
 }

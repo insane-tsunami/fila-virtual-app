@@ -14,7 +14,7 @@ context: |
   MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (nome, slug,
   endereco_publico, conta_id), contas (e-mail, CNPJ numérico ou alfanumérico com dígito verificador conferido e
   guardado em maiúsculas, hash da senha), sessoes
-  (hash do token, validade) e entradas_fila (migrações em
+  (hash do token, validade), limites_tentativas (contadores) e entradas_fila (migrações em
   server/database/migrations). Cada conta é dona de uma loja criada no cadastro.
   API pública: POST /api/contas (cadastro), POST /api/sessoes (login),
   GET /api/filas/{slug} e as chamadas do cliente em /api/filas/{slug}/entradas.
@@ -27,8 +27,12 @@ context: |
   REACT_APP_API_URL): cadastro, login, dashboard (fila real, atualização a cada
   5 s), QR code, Perfil (trocar a senha) e a página do cliente. As rotas do
   dashboard ficam atrás do login (src/sessao); o token fica em sessionStorage.
-  Pendências: avatar, confirmação de e-mail, "esqueci a senha", limite de
-  tentativas. Node 16 fixado para o front.
+  Limite de tentativas (spec rate-limiting): login (por e-mail e por IP), cadastro
+  (por IP) e troca de senha (por conta) respondem 429 com Retry-After; contadores
+  na tabela limites_tentativas; IP pelo REMOTE_ADDR, X-Forwarded-For só atrás de
+  TRUSTED_PROXIES; limites em RATE_LIMIT_*.
+  Pendências: avatar, confirmação de e-mail, "esqueci a senha". Node 16 fixado
+  para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

@@ -23,12 +23,16 @@ abstract class ApiTestCase extends DatabaseTestCase
 
     private ?string $tokenDaDona = null;
 
+    /** Endereço da conexão das chamadas (REMOTE_ADDR); null = sem endereço, como nos testes comuns. */
+    protected ?string $enderecoRemoto = null;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->migrate();
         $this->errosLogados = [];
         $this->tokenDaDona = null;
+        $this->enderecoRemoto = null;
     }
 
     /** @param array<string, mixed> $config */
@@ -56,7 +60,11 @@ abstract class ApiTestCase extends DatabaseTestCase
         array $cabecalhos = [],
         array $config = [],
     ): ResponseInterface {
-        $requisicao = (new ServerRequestFactory())->createServerRequest($metodo, $uri);
+        $requisicao = (new ServerRequestFactory())->createServerRequest(
+            $metodo,
+            $uri,
+            $this->enderecoRemoto === null ? [] : ['REMOTE_ADDR' => $this->enderecoRemoto]
+        );
 
         foreach ($cabecalhos as $nome => $valor) {
             $requisicao = $requisicao->withHeader($nome, $valor);

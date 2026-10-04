@@ -9,7 +9,9 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigTest extends TestCase
 {
-    private const VARIAVEIS = ['DB_DRIVER', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'API_KEY', 'CORS_ORIGIN'];
+    private const VARIAVEIS = ['DB_DRIVER', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'API_KEY', 'CORS_ORIGIN',
+        'RATE_LIMIT_LOGIN_EMAIL', 'RATE_LIMIT_LOGIN_IP', 'RATE_LIMIT_SENHA_CONTA', 'RATE_LIMIT_JANELA_MIN',
+        'RATE_LIMIT_CADASTRO_IP', 'RATE_LIMIT_CADASTRO_JANELA_MIN', 'TRUSTED_PROXIES'];
 
     /** @var array<string, string|false> */
     private array $original = [];
@@ -72,6 +74,49 @@ final class ConfigTest extends TestCase
 
         $this->assertSame('https://primeira.exemplo.com', $primeira['cors_origin']);
         $this->assertSame('https://segunda.exemplo.com', $segunda['cors_origin']);
+    }
+
+    public function testLimitesDeTentativasTemPadroes(): void
+    {
+        $config = $this->carregar();
+
+        $this->assertSame([
+            'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
+            'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
+        ], $config['rate_limit']);
+        $this->assertSame([], $config['trusted_proxies']);
+    }
+
+    public function testLimitesDeTentativasLemOAmbiente(): void
+    {
+        putenv('RATE_LIMIT_LOGIN_EMAIL=3');
+        putenv('RATE_LIMIT_CADASTRO_JANELA_MIN=30');
+        putenv('TRUSTED_PROXIES= 10.0.0.1 , 192.168.0.0/16,,');
+
+        $config = $this->carregar();
+
+        $this->assertSame(3, $config['rate_limit']['login_email']);
+        $this->assertSame(30, $config['rate_limit']['cadastro_janela_minutos']);
+        $this->assertSame(20, $config['rate_limit']['login_ip']);
+        $this->assertSame(['10.0.0.1', '192.168.0.0/16'], $config['trusted_proxies']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function valoresInvalidos(): array
+    {
+        return ['zero' => ['0'], 'negativo' => ['-3'], 'texto' => ['muito'], 'decimal' => ['2.5'], 'vazio' => ['']];
+    }
+
+    #[DataProvider('valoresInvalidos')]
+    public function testLimiteInvalidoUsaOPadrao(string $valor): void
+    {
+        putenv('RATE_LIMIT_LOGIN_EMAIL=' . $valor);
+        putenv('RATE_LIMIT_JANELA_MIN=' . $valor);
+
+        $config = $this->carregar();
+
+        $this->assertSame(5, $config['rate_limit']['login_email']);
+        $this->assertSame(15, $config['rate_limit']['janela_minutos']);
     }
 
     public function testNaoDefineConstantesGlobais(): void

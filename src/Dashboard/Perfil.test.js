@@ -136,6 +136,22 @@ describe('Configurações do estabelecimento', () => {
     expect(u.getByLabelText('E-mail').value).toBe('contato@modaazul.com');
   });
 
+  it('429 (limite de tentativas): mostra a mensagem e NÃO expira a sessão', async () => {
+    trocarSenha.mockRejectedValue(
+      new ApiError(429, 'Muitas tentativas. Tente de novo em 15 minutos.')
+    );
+    const u = renderPerfil();
+
+    preencher(u, 'errada-errada', 'senha-nova-22', 'senha-nova-22');
+    await atualizar(u);
+
+    expect(
+      u.getByText('Muitas tentativas. Tente de novo em 15 minutos.')
+    ).toBeInTheDocument();
+    expect(expirar).not.toHaveBeenCalled();
+    expect(u.getByLabelText('E-mail').value).toBe('contato@modaazul.com');
+  });
+
   it('401 (sessão inválida): expira a sessão', async () => {
     trocarSenha.mockRejectedValue(new ApiError(401, 'x'));
     const u = renderPerfil();
