@@ -41,7 +41,7 @@ final class ContaService
         $email = Email::normalizar($corpo['email'])
             ?? throw new DadosInvalidosException('E-mail inválido.');
         $cnpj = Cnpj::normalizar($corpo['cnpj'])
-            ?? throw new DadosInvalidosException('CNPJ inválido: informe os 14 dígitos.');
+            ?? throw new DadosInvalidosException('CNPJ inválido: confira os caracteres e os dígitos verificadores.');
         $nome = is_string($corpo['nome']) ? trim($corpo['nome']) : '';
         $tamanho = mb_strlen($nome);
         if ($tamanho < self::NOME_MINIMO || $tamanho > self::NOME_MAXIMO) {

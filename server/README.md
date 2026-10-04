@@ -68,7 +68,7 @@ Os testes apagam todas as tabelas do banco a cada teste. Por isso eles **recusam
 
 Todas as respostas são JSON. Erros têm o formato `{"erro": "mensagem"}`. Exemplos contra `http://localhost:8080`:
 
-**Cadastrar a conta e a loja** (público): cria a conta, a loja dela (o `slug` sai do nome: `Moda & Cia São João` vira `moda-cia-sao-joao`, com `-2`, `-3`... se já existir) e já abre a sessão. O CNPJ pode ter máscara; o dígito verificador não é conferido. A senha tem de 8 a 72 caracteres.
+**Cadastrar a conta e a loja** (público): cria a conta, a loja dela (o `slug` sai do nome: `Moda & Cia São João` vira `moda-cia-sao-joao`, com `-2`, `-3`... se já existir) e já abre a sessão. O CNPJ pode ter máscara e ser numérico ou **alfanumérico** (12 posições com letras ou números e 2 dígitos verificadores, formato da Receita desde julho de 2026, como `12.ABC.345/01DE-35`); letras minúsculas viram maiúsculas e o **dígito verificador é conferido** (CNPJ com dígito errado ou com os 14 caracteres iguais é `422`). A senha tem de 8 a 72 caracteres.
 
 ```bash
 curl -X POST http://localhost:8080/api/contas -H 'Content-Type: application/json' \
@@ -178,6 +178,6 @@ A hospedagem ainda não foi definida. O código não depende de nenhum provedor:
 - **Não há "esqueci a senha"** nem confirmação de e-mail: quem perde a senha perde o acesso, e qualquer pessoa pode cadastrar um e-mail ou CNPJ que não é dela.
 - **O token é um segredo:** quem o tiver age como a dona da loja por até 7 dias (ou até sair ou trocar a senha). O front o guarda em `sessionStorage`, legível por qualquer script da página.
 - **A loja `veste-bem` original não tem dono:** continua servindo a página pública da fila, mas ninguém a acessa pelo dashboard.
-- **O CNPJ não é validado** além de ter 14 dígitos (sem dígito verificador, e ainda sem o formato alfanumérico).
+- **O dígito verificador só pega erro de digitação:** não prova que o CNPJ é de quem se cadastra (isso depende de consulta à Receita ou de confirmação de e-mail, que não existem).
 - **Qualquer pessoa pode entrar na fila com qualquer telefone:** não há limite de requisições nem confirmação de que o número é de quem o digitou. Isso precisa ser resolvido antes de existirem notificações.
 - **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A política de retenção do histórico ainda não foi definida.

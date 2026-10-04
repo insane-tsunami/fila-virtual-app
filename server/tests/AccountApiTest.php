@@ -95,6 +95,10 @@ final class AccountApiTest extends ApiTestCase
         return [
             'e-mail inválido' => [['email' => 'sem-arroba'], 'E-mail'],
             'cnpj com 13 dígitos' => [['cnpj' => '9333997000010'], 'CNPJ'],
+            'cnpj com dígito verificador errado' => [['cnpj' => '93339970000106'], 'dígitos verificadores'],
+            'cnpj alfanumérico com dígito verificador errado' => [['cnpj' => '12ABC34501DE36'], 'CNPJ'],
+            'cnpj com letra nos dígitos verificadores' => [['cnpj' => '12ABC34501DEAB'], 'CNPJ'],
+            'cnpj com 14 caracteres iguais' => [['cnpj' => '00000000000000'], 'CNPJ'],
             'nome curto' => [['nome' => 'A'], 'Nome do estabelecimento'],
             'nome só de símbolos' => [['nome' => '!!!'], 'letras ou números'],
             'senha curta' => [['senha' => '1234567'], 'Senha'],
@@ -140,6 +144,27 @@ final class AccountApiTest extends ApiTestCase
         $this->chamar('POST', '/api/contas', $this->corpo());
 
         $resposta = $this->chamar('POST', '/api/contas', $this->corpo(['email' => 'CONTATO@modaazul.com', 'cnpj' => '11.111.111/0001-91']));
+
+        $this->assertSame(409, $resposta->getStatusCode());
+        $this->assertSame(1, $this->contas());
+    }
+
+    public function testCnpjAlfanumericoEAceitoEMostradoEmMaiusculasEmTodasAsRespostas(): void
+    {
+        $r = $this->chamar('POST', '/api/contas', $this->corpo(['cnpj' => '12.abc.345/01de-35']));
+        $corpo = $this->json($r);
+
+        $this->assertSame(201, $r->getStatusCode());
+        $this->assertSame('12ABC34501DE35', $corpo['conta']['cnpj']);
+        $conta = $this->json($this->chamar('GET', '/api/conta', null, $this->comSessao($corpo['token'])));
+        $this->assertSame('12ABC34501DE35', $conta['conta']['cnpj']);
+    }
+
+    public function testCnpjAlfanumericoRepetidoComOutraCaixaEh409(): void
+    {
+        $this->chamar('POST', '/api/contas', $this->corpo(['cnpj' => '12ABC34501DE35']));
+
+        $resposta = $this->chamar('POST', '/api/contas', $this->corpo(['email' => 'outro@exemplo.com', 'cnpj' => '12.abc.345/01de-35']));
 
         $this->assertSame(409, $resposta->getStatusCode());
         $this->assertSame(1, $this->contas());

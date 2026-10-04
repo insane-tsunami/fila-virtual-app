@@ -121,6 +121,22 @@ final class ContaServiceTest extends DatabaseTestCase
         $this->assertSame($hash, $this->db->table('contas')->value('senha_hash'), 'a conta existente não muda');
     }
 
+    public function testCnpjAlfanumericoEAceitoEGuardadoEmMaiusculas(): void
+    {
+        $resposta = $this->contas->cadastrar($this->corpo(['cnpj' => '12.abc.345/01de-35']));
+
+        $this->assertSame('12ABC34501DE35', $resposta['conta']['cnpj']);
+        $this->assertSame('12ABC34501DE35', Conta::query()->firstOrFail()->cnpj);
+    }
+
+    public function testCnpjRepetidoComOutraCaixaEh409(): void
+    {
+        $this->contas->cadastrar($this->corpo(['cnpj' => '12ABC34501DE35']));
+
+        $this->expectException(ConflitoException::class);
+        $this->contas->cadastrar($this->corpo(['email' => 'outra@exemplo.com', 'cnpj' => '12.abc.345/01de-35']));
+    }
+
     public function testCnpjRepetidoComEmSemMascaraEh409(): void
     {
         $this->contas->cadastrar($this->corpo());
@@ -170,7 +186,10 @@ final class ContaServiceTest extends DatabaseTestCase
             'e-mail inválido' => [['email' => 'sem-arroba'], 'E-mail'],
             'e-mail não é texto' => [['email' => 123], 'E-mail'],
             'cnpj com 13 dígitos' => [['cnpj' => '9333997000010'], 'CNPJ'],
-            'cnpj com letras' => [['cnpj' => '93.339.970/000A-05'], 'CNPJ'],
+            'cnpj com letra nos dígitos verificadores' => [['cnpj' => '12ABC34501DEAB'], 'CNPJ'],
+            'cnpj com dígito verificador errado' => [['cnpj' => '93339970000106'], 'dígitos verificadores'],
+            'cnpj alfanumérico com dígito verificador errado' => [['cnpj' => '12ABC34501DE36'], 'CNPJ'],
+            'cnpj com 14 caracteres iguais' => [['cnpj' => '00000000000000'], 'CNPJ'],
             'nome de 1 caractere' => [['nome' => 'A'], 'Nome do estabelecimento'],
             'nome só com espaços' => [['nome' => '    '], 'Nome do estabelecimento'],
             'nome com 121 caracteres' => [['nome' => str_repeat('a', 121)], 'Nome do estabelecimento'],
