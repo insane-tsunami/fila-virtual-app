@@ -17,10 +17,13 @@ context: |
   PUT /api/filas/{slug}/endereco (chave) e /api/filas/{slug}/entradas
   (specs queue-intake, queue-management, store-address e api-platform); as rotas
   do dashboard usam uma chave provisória (X-API-Key). Sem login e sem multi-loja.
-  Estado atual: a página do cliente (/fila/:slug, spec customer-queue-page) e o
-  QR code do dashboard (qrcode-generation) consomem a API por src/api.js, com a
-  base em REACT_APP_API_URL; o restante do dashboard (fila, perfil) ainda usa
-  dados fictícios. Node 16 fixado para o front.
+  Estado atual: a página do cliente (/fila/:slug, spec customer-queue-page), o
+  dashboard (fila real com atualização a cada 5 s e finalizar atendimento) e o
+  QR code consomem a API por src/api.js, com a base em REACT_APP_API_URL. As
+  páginas /dashboard e /dashboard/qrcode pedem a chave provisória X-API-Key em
+  uma tela de chave (spec dashboard-access), guardada só em sessionStorage;
+  só o Perfil (/dashboard/perfil) ainda usa dados fictícios. Node 16 fixado
+  para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.
