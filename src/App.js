@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
 import Dashboard from './Dashboard';
+import ChaveGate from './Dashboard/ChaveGate';
 import QrCode from './Dashboard/Qrcode';
 import Perfil from './Dashboard/Perfil';
 import Cliente from './Cliente';
@@ -28,11 +29,15 @@ function App() {
             <Login />
           </Route>
           <Route exact path="/dashboard">
-            <Dashboard />
+            <ChaveGate>
+              <Dashboard />
+            </ChaveGate>
           </Route>
 
           <Route path="/dashboard/qrcode">
-            <QrCode />
+            <ChaveGate>
+              <QrCode />
+            </ChaveGate>
           </Route>
 
           <Route path="/fila/:slug">

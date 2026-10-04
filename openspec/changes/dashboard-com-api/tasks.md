@@ -2,12 +2,12 @@
 
 ## 1. Cliente HTTP e guarda da chave
 
-- [ ] 1.1 Estender `src/api.js`: `requisitar` aceita a chave (`X-API-Key`) e `PUT`; acrescentar `listarFila`, `finalizarEntrada` e `definirEndereco`; verificar em `src/api.test.js` (`fetch` simulado) o método, a URL e o cabeçalho de cada chamada, a ausência do cabeçalho nas chamadas públicas e os erros `401`, `409` e `422` com `status` e mensagem
-- [ ] 1.2 Criar `src/Dashboard/chave.js` (`lerChave`, `guardarChave`, `apagarChave` em `sessionStorage`, com reserva em memória se o armazenamento estiver bloqueado); verificar com testes: ida e volta, apagar, que nada vai para `localStorage` e armazenamento bloqueado sem exceção, mantendo a chave em memória
+- [x] 1.1 Estender `src/api.js`: `requisitar` aceita a chave (`X-API-Key`) e `PUT`; acrescentar `listarFila`, `finalizarEntrada` e `definirEndereco`; verificar em `src/api.test.js` (`fetch` simulado) o método, a URL e o cabeçalho de cada chamada, a ausência do cabeçalho nas chamadas públicas e os erros `401`, `409` e `422` com `status` e mensagem
+- [x] 1.2 Criar `src/Dashboard/chave.js` (`lerChave`, `guardarChave`, `apagarChave` em `sessionStorage`, com reserva em memória se o armazenamento estiver bloqueado); verificar com testes: ida e volta, apagar, que nada vai para `localStorage` e armazenamento bloqueado sem exceção, mantendo a chave em memória
 
 ## 2. Tela de chave e "Sair"
 
-- [ ] 2.1 Criar o `ChaveGate` (formulário "Chave de acesso" e "Entrar", validação pela listagem da fila, "Chave inválida.", mensagem de rede, retorno ao formulário quando a página avisa `401`) e envolver `/dashboard` e `/dashboard/qrcode` em `src/App.js`, deixando `/dashboard/perfil` de fora; verificar com testes dos cenários de `dashboard-access` (sem chave, chave correta, errada, API fora do ar, recarregar com chave, armazenamento bloqueado, perfil sem chave) e que `src/App.test.js` continua verde
+- [x] 2.1 Criar o `ChaveGate` (formulário "Chave de acesso" e "Entrar", validação pela listagem da fila, "Chave inválida.", mensagem de rede, retorno ao formulário quando a página avisa `401`) e envolver `/dashboard` e `/dashboard/qrcode` em `src/App.js`, deixando `/dashboard/perfil` de fora; verificar com testes dos cenários de `dashboard-access` (sem chave, chave correta, errada, API fora do ar, recarregar com chave, armazenamento bloqueado, perfil sem chave) e que `src/App.test.js` continua verde
 - [ ] 2.2 "Sair" em `src/Dashboard/Nav.js` apaga a chave e navega para `/`; verificar com teste de `Nav.test.js` (chave apagada e rota `/`) e com o cenário de voltar ao dashboard e ver a tela de chave; documentar no `README.md` a chave provisória do dashboard (de onde vem, que fica só na sessão e que nunca vai no build)
 
 ## 3. Nome da loja na barra lateral

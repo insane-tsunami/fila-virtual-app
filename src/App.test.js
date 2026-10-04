@@ -2,11 +2,15 @@ import React from 'react';
 import { render } from '@testing-library/react';
 
 import App from './App';
+import { guardarChave, apagarChave } from './Dashboard/chave';
 
 function renderAppAt(path) {
   window.history.pushState({}, '', path);
   return render(<App />);
 }
+
+beforeEach(() => guardarChave('chave-de-teste'));
+afterEach(() => apagarChave());
 
 describe('Rotas da aplicação', () => {
   it('exibe o dashboard em /dashboard sem exigir login', () => {
