@@ -6,7 +6,7 @@ const INTERVALO_MS = 5000;
 
 // Fila do dashboard: consulta a API ao montar e a cada 5 s (uma consulta por
 // vez), mantém a última fila se a API falhar e finaliza o atendimento atual.
-export default function useFila(slug, chave, aoRecusarChave) {
+export default function useFila(slug, token, aoExpirar) {
   const [clientes, setClientes] = useState([]);
   const [carregado, setCarregado] = useState(false);
   const [falha, setFalha] = useState(false);
@@ -17,14 +17,14 @@ export default function useFila(slug, chave, aoRecusarChave) {
   const ultimaConsulta = useRef(0);
   const clientesRef = useRef([]);
   const finalizandoRef = useRef(false);
-  const recusar = useRef(aoRecusarChave);
-  recusar.current = aoRecusarChave;
+  const expirar = useRef(aoExpirar);
+  expirar.current = aoExpirar;
 
   const buscar = useCallback(async () => {
     ultimaConsulta.current += 1;
     const minha = ultimaConsulta.current;
     try {
-      const lista = await listarFila(slug, chave);
+      const lista = await listarFila(slug, token);
       // ignora respostas de uma página já fechada ou ultrapassadas por outra
       if (!vivo.current || minha !== ultimaConsulta.current) return;
       clientesRef.current = lista;
@@ -34,12 +34,12 @@ export default function useFila(slug, chave, aoRecusarChave) {
     } catch (e) {
       if (!vivo.current || minha !== ultimaConsulta.current) return;
       if (e.status === 401) {
-        recusar.current();
+        expirar.current();
         return;
       }
       setFalha(true);
     }
-  }, [slug, chave]);
+  }, [slug, token]);
 
   useEffect(() => {
     vivo.current = true;
@@ -65,18 +65,18 @@ export default function useFila(slug, chave, aoRecusarChave) {
     setFinalizando(true);
     setErroFinalizar('');
     try {
-      await finalizarEntrada(slug, atual.codigo, chave);
+      await finalizarEntrada(slug, atual.codigo, token);
       await buscar();
     } catch (e) {
       if (!vivo.current) return;
-      if (e.status === 401) recusar.current();
+      if (e.status === 401) expirar.current();
       else if (e.status === 409) await buscar();
       else setErroFinalizar(e.message);
     } finally {
       finalizandoRef.current = false;
       if (vivo.current) setFinalizando(false);
     }
-  }, [slug, chave, buscar]);
+  }, [slug, token, buscar]);
 
   return { clientes, carregado, falha, finalizando, erroFinalizar, finalizar };
 }

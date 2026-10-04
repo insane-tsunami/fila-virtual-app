@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, fireEvent, wait, act } from '@testing-library/react';
 
 import QrCode from './Qrcode';
-import { ChaveProvider } from './ChaveGate';
+import SessaoDeTeste from '../sessao/SessaoDeTeste';
 import { ApiError, buscarLoja, definirEndereco } from '../api';
 
 jest.mock('qrcode.react', () => ({
@@ -27,15 +27,28 @@ jest.mock('../api', () => {
 
 const recusar = jest.fn();
 
-async function renderQrCode() {
+const atualizarLoja = jest.fn();
+
+// `endereco` é o endereço que a loja da sessão já tem ao abrir a página.
+async function renderQrCode(endereco = null) {
   const utils = render(
     <MemoryRouter>
-      <ChaveProvider value={{ chave: 'k', recusar }}>
+      <SessaoDeTeste
+        valor={{
+          token: 'k',
+          expirar: recusar,
+          atualizarLoja,
+          loja: {
+            nome: 'Veste Bem',
+            slug: 'veste-bem',
+            endereco_publico: endereco,
+          },
+        }}
+      >
         <QrCode />
-      </ChaveProvider>
+      </SessaoDeTeste>
     </MemoryRouter>
   );
-  // deixa a barra lateral terminar de buscar o nome da loja
   await act(async () => {});
   return utils;
 }
@@ -45,14 +58,9 @@ const botao = (u) =>
 
 beforeEach(() => {
   recusar.mockReset();
+  atualizarLoja.mockReset();
   definirEndereco.mockReset();
   buscarLoja.mockReset();
-  // a barra lateral também consulta a loja ao montar
-  buscarLoja.mockResolvedValue({
-    nome: 'Veste Bem',
-    slug: 'veste-bem',
-    endereco_publico: null,
-  });
 });
 
 describe('Geração de QR code', () => {
@@ -67,15 +75,20 @@ describe('Geração de QR code', () => {
   });
 
   it('não desenha o QR antes de acionar o botão', async () => {
+    buscarLoja.mockResolvedValue({
+      nome: 'Veste Bem',
+      slug: 'veste-bem',
+      endereco_publico: null,
+    });
     const u = await renderQrCode();
 
-    // só a barra lateral consultou a loja; o QR espera o botão
-    expect(buscarLoja).toHaveBeenCalledTimes(1);
+    // nada é consultado nem desenhado antes de acionar o botão
+    expect(buscarLoja).not.toHaveBeenCalled();
     expect(u.queryByTestId('qr')).not.toBeInTheDocument();
 
     fireEvent.click(botao(u));
     expect(await u.findByTestId('qr')).toBeInTheDocument();
-    expect(buscarLoja).toHaveBeenCalledTimes(2);
+    expect(buscarLoja).toHaveBeenCalledTimes(1);
   });
 
   it('loja com endereço público: QR e texto da URL da loja', async () => {
@@ -155,8 +168,7 @@ const loja = (endereco) => ({
 
 describe('Endereço público da loja', () => {
   it('mostra o endereço atual da loja no campo', async () => {
-    buscarLoja.mockResolvedValue(loja('https://loja.exemplo.com'));
-    const u = await renderQrCode();
+    const u = await renderQrCode('https://loja.exemplo.com');
 
     expect(campo(u).value).toBe('https://loja.exemplo.com');
   });
@@ -167,25 +179,7 @@ describe('Endereço público da loja', () => {
     expect(campo(u).value).toBe('');
   });
 
-  it('não pisa no que o dono já digitou quando a loja chega depois', async () => {
-    let chegar;
-    buscarLoja.mockReset().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          chegar = () => resolve(loja('https://loja.exemplo.com'));
-        })
-    );
-    const u = await renderQrCode();
-
-    fireEvent.change(campo(u), {
-      target: { value: 'https://novo.exemplo.com' },
-    });
-    await act(async () => chegar());
-
-    expect(campo(u).value).toBe('https://novo.exemplo.com');
-  });
-
-  it('salva um endereço válido com a chave e o QR seguinte usa esse endereço', async () => {
+  it('salva um endereço válido com o token e o QR seguinte usa esse endereço', async () => {
     const u = await renderQrCode();
     definirEndereco.mockResolvedValue(loja('https://loja.exemplo.com'));
     fireEvent.change(campo(u), {
@@ -223,6 +217,20 @@ describe('Endereço público da loja', () => {
     );
   });
 
+  it('depois de salvar, atualiza a loja da sessão com o que a API devolveu', async () => {
+    const u = await renderQrCode();
+    definirEndereco.mockResolvedValue(loja('https://loja.exemplo.com'));
+    fireEvent.change(campo(u), {
+      target: { value: 'HTTPS://Loja.Exemplo.com/' },
+    });
+    salvar(u);
+
+    await u.findByText('Endereço salvo.');
+    expect(atualizarLoja).toHaveBeenCalledWith(
+      loja('https://loja.exemplo.com')
+    );
+  });
+
   it('mostra no campo o valor normalizado devolvido pela API', async () => {
     const u = await renderQrCode();
     definirEndereco.mockResolvedValue(loja('https://loja.exemplo.com'));
@@ -251,8 +259,7 @@ describe('Endereço público da loja', () => {
   });
 
   it('campo vazio apaga o endereço e o QR seguinte usa a origem do front', async () => {
-    buscarLoja.mockResolvedValue(loja('https://loja.exemplo.com'));
-    const u = await renderQrCode();
+    const u = await renderQrCode('https://loja.exemplo.com');
     definirEndereco.mockResolvedValue(loja(null));
     fireEvent.change(campo(u), { target: { value: '' } });
     salvar(u);
@@ -279,7 +286,7 @@ describe('Endereço público da loja', () => {
     expect(campo(u).value).toBe('https://loja.exemplo.com');
   });
 
-  it('401: pede a chave de novo', async () => {
+  it('401: expira a sessão e leva ao login', async () => {
     const u = await renderQrCode();
     definirEndereco.mockRejectedValue(new ApiError(401, 'x'));
     fireEvent.change(campo(u), {
@@ -293,7 +300,7 @@ describe('Endereço público da loja', () => {
 
   it('salvar descarta o QR já mostrado', async () => {
     buscarLoja.mockResolvedValue(loja('https://velho.exemplo.com'));
-    const u = await renderQrCode();
+    const u = await renderQrCode('https://velho.exemplo.com');
     fireEvent.click(botao(u));
     await u.findByTestId('qr');
 

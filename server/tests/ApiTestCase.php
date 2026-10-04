@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests;
 
 use Psr\Http\Message\ResponseInterface;
+use Models\Conta;
+use Services\SessaoService;
 use Slim\App;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Factory\StreamFactory;
@@ -14,23 +16,25 @@ use Throwable;
 /** Base dos testes da API: chama a aplicação Slim direto, sem servidor HTTP. */
 abstract class ApiTestCase extends DatabaseTestCase
 {
-    protected const CHAVE = 'segredo-de-teste';
     protected const SLUG = 'veste-bem';
 
     /** @var list<Throwable> erros inesperados (500) recebidos pelo logger */
     protected array $errosLogados = [];
+
+    private ?string $tokenDaDona = null;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->migrate();
         $this->errosLogados = [];
+        $this->tokenDaDona = null;
     }
 
     /** @param array<string, mixed> $config */
     protected function app(array $config = []): App
     {
-        $padrao = ['api_key' => self::CHAVE, 'cors_origin' => ''];
+        $padrao = ['cors_origin' => ''];
 
         return Aplicacao::criar(
             array_merge($padrao, $config),
@@ -73,10 +77,46 @@ abstract class ApiTestCase extends DatabaseTestCase
         return json_decode((string) $resposta->getBody(), true);
     }
 
-    /** @return array<string, string> */
-    protected function comChave(): array
+    /**
+     * Cabeçalho de sessão. Sem argumento, é o da dona da loja semeada `veste-bem` (a conta é
+     * criada e ligada à loja na primeira chamada de cada teste).
+     *
+     * @return array<string, string>
+     */
+    protected function comSessao(?string $token = null): array
     {
-        return ['X-API-Key' => self::CHAVE];
+        return ['Authorization' => 'Bearer ' . ($token ?? $this->tokenDaDona())];
+    }
+
+    protected function tokenDaDona(): string
+    {
+        if ($this->tokenDaDona === null) {
+            $conta = Conta::create([
+                'email' => 'dona@vestebem.com',
+                'cnpj' => '93339970000105',
+                'senha_hash' => password_hash('senha-da-dona-1', PASSWORD_BCRYPT, ['cost' => 4]),
+                'criado_em' => gmdate('Y-m-d H:i:s'),
+            ]);
+            $this->db->table('estabelecimentos')->where('slug', self::SLUG)->update(['conta_id' => $conta->id]);
+            $this->tokenDaDona = (new SessaoService())->abrir($conta)['token'];
+        }
+
+        return $this->tokenDaDona;
+    }
+
+    /**
+     * Cadastra uma conta (e a loja dela) pela API e devolve o corpo da resposta.
+     *
+     * @return array<string, mixed>
+     */
+    protected function cadastrarConta(string $nome, string $email, string $cnpj, string $senha = 'senha-segura-1'): array
+    {
+        $resposta = $this->chamar('POST', '/api/contas', [
+            'email' => $email, 'cnpj' => $cnpj, 'nome' => $nome, 'senha' => $senha,
+        ]);
+        $this->assertSame(201, $resposta->getStatusCode(), (string) $resposta->getBody());
+
+        return $this->json($resposta);
     }
 
     /** Entra na fila pela API com o telefone de número `$n` e devolve o corpo da resposta. */

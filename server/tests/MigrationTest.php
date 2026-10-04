@@ -23,6 +23,7 @@ final class MigrationTest extends DatabaseTestCase
             '0002_create_entradas_fila',
             '0003_seed_estabelecimento_veste_bem',
             '0004_add_endereco_publico_to_estabelecimentos',
+            '0005_create_contas_e_sessoes',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -45,6 +46,82 @@ final class MigrationTest extends DatabaseTestCase
             'id', 'estabelecimento_id', 'codigo', 'telefone', 'status',
             'entrou_em', 'iniciou_em', 'finalizou_em',
         ]));
+    }
+
+    public function testCriaAsTabelasDeContasESessoes(): void
+    {
+        $this->migrate();
+        $schema = $this->db->schema();
+
+        $this->assertTrue($schema->hasColumns('contas', ['id', 'email', 'cnpj', 'senha_hash', 'criado_em']));
+        $this->assertTrue($schema->hasColumns('sessoes', ['id', 'conta_id', 'token_hash', 'criado_em', 'expira_em']));
+        $this->assertTrue($schema->hasColumn('estabelecimentos', 'conta_id'));
+    }
+
+    public function testLojaDePartidaNaoTemDono(): void
+    {
+        $this->migrate();
+
+        $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('conta_id'));
+    }
+
+    /** @return array<string, mixed> */
+    private function conta(string $email = 'a@exemplo.com', string $cnpj = '93339970000105'): array
+    {
+        return ['email' => $email, 'cnpj' => $cnpj, 'senha_hash' => 'hash', 'criado_em' => '2026-10-04 10:00:00'];
+    }
+
+    public function testEmailDuplicadoERecusadoPeloBanco(): void
+    {
+        $this->migrate();
+        $this->db->table('contas')->insert($this->conta());
+
+        $this->expectException(QueryException::class);
+        $this->db->table('contas')->insert($this->conta('a@exemplo.com', '11111111000191'));
+    }
+
+    public function testCnpjDuplicadoERecusadoPeloBanco(): void
+    {
+        $this->migrate();
+        $this->db->table('contas')->insert($this->conta());
+
+        $this->expectException(QueryException::class);
+        $this->db->table('contas')->insert($this->conta('b@exemplo.com'));
+    }
+
+    public function testTokenDeSessaoDuplicadoERecusadoPeloBanco(): void
+    {
+        $this->migrate();
+        $conta = $this->db->table('contas')->insertGetId($this->conta());
+        $sessao = [
+            'conta_id' => $conta, 'token_hash' => str_repeat('a', 64),
+            'criado_em' => '2026-10-04 10:00:00', 'expira_em' => '2026-10-11 10:00:00',
+        ];
+        $this->db->table('sessoes')->insert($sessao);
+
+        $this->expectException(QueryException::class);
+        $this->db->table('sessoes')->insert($sessao);
+    }
+
+    public function testSessaoDeContaInexistenteERecusadaPelaChaveEstrangeira(): void
+    {
+        $this->migrate();
+
+        $this->expectException(QueryException::class);
+        $this->db->table('sessoes')->insert([
+            'conta_id' => 9999, 'token_hash' => str_repeat('b', 64),
+            'criado_em' => '2026-10-04 10:00:00', 'expira_em' => '2026-10-11 10:00:00',
+        ]);
+    }
+
+    public function testUmaContaNaoPodeTerDuasLojas(): void
+    {
+        $this->migrate();
+        $conta = $this->db->table('contas')->insertGetId($this->conta());
+        $this->db->table('estabelecimentos')->insert(['nome' => 'A', 'slug' => 'a', 'conta_id' => $conta]);
+
+        $this->expectException(QueryException::class);
+        $this->db->table('estabelecimentos')->insert(['nome' => 'B', 'slug' => 'b', 'conta_id' => $conta]);
     }
 
     public function testInsereOEstabelecimentoDePartida(): void
@@ -71,6 +148,28 @@ final class MigrationTest extends DatabaseTestCase
         );
     }
 
+    public function testAtualizarDaQuartaParaAQuintaMantemAsLojasSemDono(): void
+    {
+        $dir = sys_get_temp_dir() . '/migracoes-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        foreach (glob(__DIR__ . '/../database/migrations/000[1234]_*.php') as $arquivo) {
+            copy($arquivo, $dir . '/' . basename($arquivo));
+        }
+        (new Migrator($this->db, $dir))->run();
+        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')
+            ->update(['endereco_publico' => 'https://loja.exemplo.com']);
+
+        $executadas = $this->migrator()->run();
+
+        $this->assertSame(['0005_create_contas_e_sessoes'], $executadas);
+        $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
+        $this->assertNull($loja->conta_id);
+        $this->assertSame('https://loja.exemplo.com', $loja->endereco_publico);
+
+        array_map('unlink', glob($dir . '/*.php'));
+        rmdir($dir);
+    }
+
     public function testMigracaoNovaNaoPerdeDadosDeUmBancoJaMigradoAteATerceira(): void
     {
         // Simula um banco que já estava na versão anterior: roda só as 3 primeiras e depois a 4ª.
@@ -84,7 +183,10 @@ final class MigrationTest extends DatabaseTestCase
 
         $executadas = $this->migrator()->run();
 
-        $this->assertSame(['0004_add_endereco_publico_to_estabelecimentos'], $executadas);
+        $this->assertSame([
+            '0004_add_endereco_publico_to_estabelecimentos',
+            '0005_create_contas_e_sessoes',
+        ], $executadas);
         $this->assertSame(2, $this->db->table('estabelecimentos')->count(), 'as linhas existentes continuam');
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'outra-loja')->value('endereco_publico'));
 

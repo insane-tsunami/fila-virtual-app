@@ -19,8 +19,6 @@ return [
         'username' => $env('DB_USER'),
         'password' => $env('DB_PASS'),
     ],
-    // Chave compartilhada provisória das rotas do dashboard. Vazia = rotas fechadas.
-    'api_key' => $env('API_KEY'),
     // Origem única permitida para CORS. Vazia = sem cabeçalhos CORS.
     'cors_origin' => $env('CORS_ORIGIN'),
 ];

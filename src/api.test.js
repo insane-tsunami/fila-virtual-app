@@ -117,7 +117,7 @@ describe('api', () => {
   });
 
   describe('chamadas protegidas', () => {
-    it('listarFila envia a chave e não envia corpo', async () => {
+    it('listarFila envia o token como Bearer e não envia corpo', async () => {
       global.fetch = jest.fn().mockResolvedValue(resposta(200, []));
       const { listarFila } = carregar('');
 
@@ -125,12 +125,13 @@ describe('api', () => {
       const [url, opcoes] = global.fetch.mock.calls[0];
       expect(url).toBe('/api/filas/veste-bem/entradas');
       expect(opcoes.method).toBe('GET');
-      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+      expect(opcoes.headers.Authorization).toBe('Bearer segredo');
+      expect(opcoes.headers['X-API-Key']).toBeUndefined();
       expect(opcoes.body).toBeUndefined();
       expect(opcoes.headers['Content-Type']).toBeUndefined();
     });
 
-    it('finalizarEntrada faz POST no código com a chave', async () => {
+    it('finalizarEntrada faz POST no código com o token', async () => {
       global.fetch = jest
         .fn()
         .mockResolvedValue(resposta(200, { atual: null }));
@@ -140,10 +141,11 @@ describe('api', () => {
       const [url, opcoes] = global.fetch.mock.calls[0];
       expect(url).toBe('/api/filas/veste-bem/entradas/abc/finalizar');
       expect(opcoes.method).toBe('POST');
-      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+      expect(opcoes.headers.Authorization).toBe('Bearer segredo');
+      expect(opcoes.headers['X-API-Key']).toBeUndefined();
     });
 
-    it('definirEndereco faz PUT em JSON com a chave, inclusive texto vazio', async () => {
+    it('definirEndereco faz PUT em JSON com o token, inclusive texto vazio', async () => {
       global.fetch = jest.fn().mockResolvedValue(resposta(200, {}));
       const { definirEndereco } = carregar('');
 
@@ -151,18 +153,20 @@ describe('api', () => {
       const [url, opcoes] = global.fetch.mock.calls[0];
       expect(url).toBe('/api/filas/veste-bem/endereco');
       expect(opcoes.method).toBe('PUT');
-      expect(opcoes.headers['X-API-Key']).toBe('segredo');
+      expect(opcoes.headers.Authorization).toBe('Bearer segredo');
+      expect(opcoes.headers['X-API-Key']).toBeUndefined();
       expect(opcoes.headers['Content-Type']).toBe('application/json');
       expect(JSON.parse(opcoes.body)).toEqual({ endereco_publico: '' });
     });
 
-    it('as chamadas públicas não enviam a chave', async () => {
+    it('as chamadas públicas não enviam credencial', async () => {
       global.fetch = jest.fn().mockResolvedValue(resposta(200, {}));
       const { buscarLoja, consultarEntrada } = carregar('');
 
       await buscarLoja('veste-bem');
       await consultarEntrada('veste-bem', 'abc');
       global.fetch.mock.calls.forEach(([, opcoes]) => {
+        expect(opcoes.headers.Authorization).toBeUndefined();
         expect(opcoes.headers['X-API-Key']).toBeUndefined();
       });
     });
@@ -172,10 +176,12 @@ describe('api', () => {
 
       global.fetch = jest
         .fn()
-        .mockResolvedValue(resposta(401, { erro: 'Chave inválida' }));
+        .mockResolvedValue(
+          resposta(401, { erro: 'Autenticação ausente ou inválida.' })
+        );
       await expect(listarFila('x', 'k')).rejects.toMatchObject({
         status: 401,
-        message: 'Chave inválida',
+        message: 'Autenticação ausente ou inválida.',
       });
 
       global.fetch = jest
@@ -192,6 +198,117 @@ describe('api', () => {
       await expect(definirEndereco('x', 'ftp://a', 'k')).rejects.toMatchObject({
         status: 422,
         message: 'Endereço inválido',
+      });
+    });
+  });
+
+  describe('conta e sessão', () => {
+    it('cadastrar faz POST em /api/contas com os quatro campos, sem credencial', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(201, { token: 't' }));
+      const { cadastrar } = carregar('');
+
+      await expect(
+        cadastrar({
+          email: 'a@b.com',
+          cnpj: '93.339.970/0001-05',
+          nome: 'Moda Azul',
+          senha: 'senha-segura-1',
+        })
+      ).resolves.toEqual({ token: 't' });
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/contas');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBeUndefined();
+      expect(JSON.parse(opcoes.body)).toEqual({
+        email: 'a@b.com',
+        cnpj: '93.339.970/0001-05',
+        nome: 'Moda Azul',
+        senha: 'senha-segura-1',
+      });
+    });
+
+    it('entrar faz POST em /api/sessoes com e-mail e senha, sem credencial', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(200, { token: 't' }));
+      const { entrar } = carregar('');
+
+      await entrar('a@b.com', 'senha-segura-1');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/sessoes');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBeUndefined();
+      expect(JSON.parse(opcoes.body)).toEqual({
+        email: 'a@b.com',
+        senha: 'senha-segura-1',
+      });
+    });
+
+    it('obterConta faz GET em /api/conta com o token', async () => {
+      global.fetch = jest.fn().mockResolvedValue(resposta(200, { conta: {} }));
+      const { obterConta } = carregar('');
+
+      await obterConta('tok');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/conta');
+      expect(opcoes.method).toBe('GET');
+      expect(opcoes.headers.Authorization).toBe('Bearer tok');
+    });
+
+    it('trocarSenha faz PUT em /api/conta/senha com o token e os dois campos', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(200, { mensagem: 'ok' }));
+      const { trocarSenha } = carregar('');
+
+      await trocarSenha('tok', 'atual-1234', 'nova-12345');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/conta/senha');
+      expect(opcoes.method).toBe('PUT');
+      expect(opcoes.headers.Authorization).toBe('Bearer tok');
+      expect(JSON.parse(opcoes.body)).toEqual({
+        senha_atual: 'atual-1234',
+        nova_senha: 'nova-12345',
+      });
+    });
+
+    it('sair faz DELETE em /api/sessao e aceita a resposta 204 sem corpo', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(204, null, { json: false }));
+      const { sair } = carregar('');
+
+      await expect(sair('tok')).resolves.toEqual({});
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/sessao');
+      expect(opcoes.method).toBe('DELETE');
+      expect(opcoes.headers.Authorization).toBe('Bearer tok');
+    });
+
+    it('409 e 422 do cadastro e 401 do login trazem status e mensagem', async () => {
+      const { cadastrar, entrar } = carregar('');
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          resposta(409, { erro: 'Já existe uma conta com este e-mail.' })
+        );
+      await expect(cadastrar({})).rejects.toMatchObject({
+        status: 409,
+        message: 'Já existe uma conta com este e-mail.',
+      });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(422, { erro: 'E-mail inválido.' }));
+      await expect(cadastrar({})).rejects.toMatchObject({ status: 422 });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          resposta(401, { erro: 'E-mail ou senha incorretos.' })
+        );
+      await expect(entrar('a@b.com', 'x')).rejects.toMatchObject({
+        status: 401,
+        message: 'E-mail ou senha incorretos.',
       });
     });
   });

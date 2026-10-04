@@ -44,7 +44,7 @@ final class ConfigTest extends TestCase
         $this->assertSame('zerafilas', $config['db']['database']);
         $this->assertSame('', $config['db']['username']);
         $this->assertSame('', $config['db']['password']);
-        $this->assertSame('', $config['api_key'], 'sem chave configurada o dashboard fica fechado');
+        $this->assertArrayNotHasKey('api_key', $config, 'a chave provisória foi removida (login por conta)');
         $this->assertSame('', $config['cors_origin']);
     }
 
@@ -52,26 +52,26 @@ final class ConfigTest extends TestCase
     {
         putenv('DB_DRIVER=sqlite');
         putenv('DB_NAME=:memory:');
-        putenv('API_KEY=segredo');
+        putenv('API_KEY=ignorada');
         putenv('CORS_ORIGIN=https://front.exemplo.com');
 
         $config = $this->carregar();
 
         $this->assertSame('sqlite', $config['db']['driver']);
         $this->assertSame(':memory:', $config['db']['database']);
-        $this->assertSame('segredo', $config['api_key']);
+        $this->assertArrayNotHasKey('api_key', $config, 'API_KEY no ambiente é ignorada');
         $this->assertSame('https://front.exemplo.com', $config['cors_origin']);
     }
 
     public function testCadaChamadaReleOAmbiente(): void
     {
-        putenv('API_KEY=primeira');
+        putenv('CORS_ORIGIN=https://primeira.exemplo.com');
         $primeira = $this->carregar();
-        putenv('API_KEY=segunda');
+        putenv('CORS_ORIGIN=https://segunda.exemplo.com');
         $segunda = $this->carregar();
 
-        $this->assertSame('primeira', $primeira['api_key']);
-        $this->assertSame('segunda', $segunda['api_key']);
+        $this->assertSame('https://primeira.exemplo.com', $primeira['cors_origin']);
+        $this->assertSame('https://segunda.exemplo.com', $segunda['cors_origin']);
     }
 
     public function testNaoDefineConstantesGlobais(): void

@@ -29,8 +29,8 @@ final class Cors implements MiddlewareInterface
 
         if ($requisicao->getMethod() === 'OPTIONS') {
             $resposta = (new ResponseFactory())->createResponse(204)
-                ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
-                ->withHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
+                ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
                 ->withHeader('Access-Control-Max-Age', '600');
         } else {
             $resposta = $proximo->handle($requisicao);

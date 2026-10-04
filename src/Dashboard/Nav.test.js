@@ -3,14 +3,19 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, fireEvent } from '@testing-library/react';
 
 import Nav from './Nav';
-import { guardarChave, lerChave, apagarChave } from './chave';
+import SessaoDeTeste from '../sessao/SessaoDeTeste';
 
-function renderNav() {
-  return render(
-    <MemoryRouter>
-      <Nav />
-    </MemoryRouter>
-  );
+function renderNav(sair = jest.fn()) {
+  return {
+    sair,
+    ...render(
+      <MemoryRouter>
+        <SessaoDeTeste valor={{ sair }}>
+          <Nav />
+        </SessaoDeTeste>
+      </MemoryRouter>
+    ),
+  };
 }
 
 describe('Menu lateral do dashboard', () => {
@@ -25,32 +30,21 @@ describe('Menu lateral do dashboard', () => {
     expect(getByText(texto).closest('a')).toHaveAttribute('href', destino);
   });
 
-  it('"Sair" apaga a chave guardada e não mexe em outros dados', () => {
-    guardarChave('segredo');
-    window.localStorage.setItem('zerafilas:entrada:veste-bem', 'abc');
-    const clear = jest.spyOn(Storage.prototype, 'clear');
-    const { getByText } = renderNav();
+  it('"Sair" encerra a sessão uma vez', () => {
+    const { getByText, sair } = renderNav();
 
     fireEvent.click(getByText('Sair'));
 
-    expect(lerChave()).toBeNull();
-    expect(window.sessionStorage.getItem('zerafilas:chave')).toBeNull();
-    expect(clear).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem('zerafilas:entrada:veste-bem')).toBe(
-      'abc'
-    );
-    clear.mockRestore();
-    window.localStorage.clear();
+    expect(sair).toHaveBeenCalledTimes(1);
   });
 
-  it('os outros itens do menu não apagam a chave', () => {
-    guardarChave('segredo');
-    const { getByText } = renderNav();
+  it('os outros itens do menu não encerram a sessão', () => {
+    const { getByText, sair } = renderNav();
 
     fireEvent.click(getByText('Dashboard'));
     fireEvent.click(getByText('Gerar QRCODE'));
+    fireEvent.click(getByText('Configurações'));
 
-    expect(lerChave()).toBe('segredo');
-    apagarChave();
+    expect(sair).not.toHaveBeenCalled();
   });
 });

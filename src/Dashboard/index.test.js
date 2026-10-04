@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, fireEvent, within, act } from '@testing-library/react';
 
 import Dashboard from '.';
-import { ChaveProvider } from './ChaveGate';
+import SessaoDeTeste from '../sessao/SessaoDeTeste';
 import { ApiError, listarFila, finalizarEntrada } from '../api';
 
 jest.mock('../api', () => {
@@ -15,7 +15,6 @@ jest.mock('../api', () => {
   }
   return {
     ApiError: ApiErrorMock,
-    buscarLoja: jest.fn(() => Promise.resolve({ nome: 'Veste Bem' })),
     listarFila: jest.fn(),
     finalizarEntrada: jest.fn(),
   };
@@ -40,9 +39,19 @@ const recusar = jest.fn();
 function renderDashboard() {
   const utils = render(
     <MemoryRouter>
-      <ChaveProvider value={{ chave: 'k', recusar }}>
+      <SessaoDeTeste
+        valor={{
+          token: 'k',
+          expirar: recusar,
+          loja: {
+            nome: 'Veste Bem',
+            slug: 'veste-bem',
+            endereco_publico: null,
+          },
+        }}
+      >
         <Dashboard />
-      </ChaveProvider>
+      </SessaoDeTeste>
     </MemoryRouter>
   );
   const painel = (titulo) =>
@@ -230,7 +239,7 @@ describe('Finalizar atendimento: erros e concorrência', () => {
     expect(finalizarEntrada).toHaveBeenCalledTimes(2);
   });
 
-  it('401 ao finalizar: pede a chave de novo', async () => {
+  it('401 ao finalizar: leva ao login (expira a sessão)', async () => {
     const u = renderDashboard();
     await u.findByText('*****2222');
     finalizarEntrada.mockReset().mockRejectedValue(new ApiError(401, 'x'));
@@ -317,7 +326,7 @@ describe('Atualização automática da fila', () => {
     expect(u.getByText('*****1111')).toBeInTheDocument();
   });
 
-  it('401 na consulta periódica: pede a chave de novo', async () => {
+  it('401 na consulta periódica: leva ao login (expira a sessão)', async () => {
     await abrirComRelogio();
     listarFila.mockRejectedValueOnce(new ApiError(401, 'x'));
 

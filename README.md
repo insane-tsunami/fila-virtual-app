@@ -25,16 +25,17 @@ O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` 
 - **Mesma origem:** deixe `REACT_APP_API_URL` vazia se um proxy encaminha `/api` para o PHP; assim não há CORS.
 - **Produção:** use HTTPS na API; um site em HTTPS não consegue chamar uma API em HTTP.
 - **Rotas do front:** a hospedagem precisa devolver o `index.html` para qualquer caminho (por exemplo `/fila/veste-bem`), senão o link do QRCode dá 404 ao abrir direto.
-- **Nunca** coloque a `X-API-Key` em variável `REACT_APP_*`: ela iria para o navegador de todos.
+- **Nunca** coloque segredos em variáveis `REACT_APP_*`: tudo o que começa com esse prefixo vai para o navegador de todos.
 
-### Chave de acesso do dashboard
+### Conta, login e sessão
 
-`/dashboard` e `/dashboard/qrcode` pedem uma **chave de acesso**: é o valor de `API_KEY` configurado no servidor (veja o [`server/README.md`](server/README.md)), que o dono digita ao abrir o dashboard.
+Cada estabelecimento tem a sua conta. **`/cadastro`** cria a conta e a loja juntas (e-mail, CNPJ, nome do estabelecimento e senha de 8 a 72 caracteres) e já deixa a pessoa logada; **`/login`** entra com e-mail e senha. `/dashboard`, `/dashboard/qrcode` e `/dashboard/perfil` só abrem para quem está logada (os demais vão para `/login` e voltam para a página pedida depois de entrar), e cada conta só vê e mexe na **própria** loja. A página do cliente (`/fila/<slug>`) continua pública.
 
-- A chave **nunca entra no pacote do front** e é guardada só no `sessionStorage`: fechar a aba a apaga, e "Sair" também.
-- O **endereço público da loja** (a base da URL que o QR code codifica) se define na página "Gerar QRCode", no campo "Endereço público da loja": só a origem do site, como `https://loja.exemplo.com`. Vazio usa o endereço da própria página do dashboard, que pode não ser o público (por exemplo, `localhost`).
-- Se o servidor trocar a `API_KEY`, o dashboard volta à tela de chave na próxima chamada recusada.
-- É uma proteção **provisória**, até existir login. Quem tiver a chave lista os telefones mascarados da fila e pode trocar o endereço do QR code; trate-a como senha.
+- O **token de sessão** vale 7 dias e fica só no `sessionStorage`: fechar a aba o apaga, "Sair" também, e trocar a senha encerra as outras sessões. Ele **nunca** vai no pacote do front.
+- Se a API recusar o token (vencido ou encerrado), o dashboard volta ao login com o aviso "Sua sessão expirou. Entre de novo.".
+- O **slug da loja** sai do nome no cadastro (`Moda Azul` vira `moda-azul`) e é o que vai no link do QR code. O **endereço público** da loja se define na página "Gerar QRCode", no campo "Endereço público da loja": só a origem do site, como `https://loja.exemplo.com`. Vazio usa o endereço da própria página do dashboard, que pode não ser o público (por exemplo, `localhost`).
+- A loja `veste-bem` que veio do primeiro banco **não tem dono**: a página pública dela funciona, mas ninguém a acessa pelo dashboard.
+- Pendências conhecidas (veja o [`server/README.md`](server/README.md)): sem limite de tentativas de login e de cadastro, sem "esqueci a senha" e sem confirmação de e-mail.
 
 ### Verificações
 
@@ -79,4 +80,4 @@ O contexto do projeto (stack, rotas, regras) está em `openspec/config.yaml`. Se
 
 O backend (PHP 8.3 ou mais novo) está em `server/`. Como instalar, configurar, migrar o banco, rodar e testar está no [`server/README.md`](server/README.md).
 
-A configuração vem de variáveis de ambiente (`DB_DRIVER`, `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `API_KEY` e `CORS_ORIGIN`); use `server/.env.example` como modelo e nunca commite segredos.
+A configuração vem de variáveis de ambiente (`DB_DRIVER`, `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CORS_ORIGIN`); use `server/.env.example` como modelo e nunca commite segredos.
