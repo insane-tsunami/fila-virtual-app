@@ -21,7 +21,7 @@
 
 ## 5. Endereço público na página do QR code
 
-- [ ] 5.1 Acrescentar a `src/Dashboard/Qrcode.js` o campo "Endereço público da loja" e o botão "Salvar endereço" (valor atual vindo de `buscarLoja`, `definirEndereco`, "Endereço salvo.", `422` com a mensagem da API, vazio apaga, `401` volta ao gate, rede, e salvar descarta o QR já mostrado); verificar com testes de `Qrcode.test.js` dos cenários novos de `qrcode-generation` e que os cenários atuais do QR continuam verdes; documentar no `README.md` que o endereço agora se define na página "Gerar QRCode"
+- [x] 5.1 Acrescentar a `src/Dashboard/Qrcode.js` o campo "Endereço público da loja" e o botão "Salvar endereço" (valor atual vindo de `buscarLoja`, `definirEndereco`, "Endereço salvo.", `422` com a mensagem da API, vazio apaga, `401` volta ao gate, rede, e salvar descarta o QR já mostrado); verificar com testes de `Qrcode.test.js` dos cenários novos de `qrcode-generation` e que os cenários atuais do QR continuam verdes; documentar no `README.md` que o endereço agora se define na página "Gerar QRCode"
 
 ## 6. Integração
 

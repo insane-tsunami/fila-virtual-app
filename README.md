@@ -32,6 +32,7 @@ O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` 
 `/dashboard` e `/dashboard/qrcode` pedem uma **chave de acesso**: é o valor de `API_KEY` configurado no servidor (veja o [`server/README.md`](server/README.md)), que o dono digita ao abrir o dashboard.
 
 - A chave **nunca entra no pacote do front** e é guardada só no `sessionStorage`: fechar a aba a apaga, e "Sair" também.
+- O **endereço público da loja** (a base da URL que o QR code codifica) se define na página "Gerar QRCode", no campo "Endereço público da loja": só a origem do site, como `https://loja.exemplo.com`. Vazio usa o endereço da própria página do dashboard, que pode não ser o público (por exemplo, `localhost`).
 - Se o servidor trocar a `API_KEY`, o dashboard volta à tela de chave na próxima chamada recusada.
 - É uma proteção **provisória**, até existir login. Quem tiver a chave lista os telefones mascarados da fila e pode trocar o endereço do QR code; trate-a como senha.
 
