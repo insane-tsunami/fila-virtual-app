@@ -42,6 +42,7 @@ function Painel() {
       <p>loja: {loja ? loja.nome : '-'}</p>
       <p>aviso: {aviso || '-'}</p>
       <p>rede: {String(falhaDeRede)}</p>
+      <p>confirmado: {conta ? String(conta.email_confirmado) : '-'}</p>
       <button
         type="button"
         onClick={() =>
@@ -61,6 +62,18 @@ function Painel() {
       </button>
       <button type="button" onClick={acoes.expirar}>
         expirar
+      </button>
+      <button
+        type="button"
+        onClick={() => acoes.atualizarConta().catch(() => {})}
+      >
+        atualizar conta
+      </button>
+      <button
+        type="button"
+        onClick={() => acoes.definirConta({ ...CONTA, email_confirmado: true })}
+      >
+        definir conta
       </button>
     </div>
   );
@@ -280,5 +293,73 @@ describe('Entrar, cadastrar, sair e expirar', () => {
 
     expect(u.getByText('página do dashboard')).toBeInTheDocument();
     expect(lerToken()).toBe('tok-novo');
+  });
+});
+
+describe('Estado de confirmação do e-mail', () => {
+  const NAO_CONFIRMADA = { ...CONTA, email_confirmado: false };
+
+  async function logada() {
+    guardarToken('tok');
+    api.obterConta.mockResolvedValue({ conta: NAO_CONFIRMADA, loja: LOJA });
+    const u = renderApp('/dashboard');
+    await esvaziar();
+    return u;
+  }
+
+  it('a conta da restauração traz email_confirmado', async () => {
+    const u = await logada();
+
+    expect(u.getByText('confirmado: false')).toBeInTheDocument();
+  });
+
+  it('atualizarConta reconsulta a API com o token e troca a conta da sessão', async () => {
+    const u = await logada();
+    api.obterConta.mockResolvedValue({
+      conta: { ...CONTA, email_confirmado: true },
+      loja: LOJA,
+    });
+
+    fireEvent.click(u.getByText('atualizar conta'));
+    await esvaziar();
+
+    expect(api.obterConta).toHaveBeenLastCalledWith('tok');
+    expect(u.getByText('confirmado: true')).toBeInTheDocument();
+    expect(u.getByText('estado: logado')).toBeInTheDocument();
+  });
+
+  it('atualizarConta com 401 expira a sessão', async () => {
+    const u = await logada();
+    api.obterConta.mockRejectedValue(new api.ApiError(401, 'x'));
+
+    fireEvent.click(u.getByText('atualizar conta'));
+    await esvaziar();
+
+    expect(u.getByText('página de login')).toBeInTheDocument();
+    expect(lerToken()).toBeNull();
+  });
+
+  it('atualizarConta com a API fora do ar mantém a sessão', async () => {
+    const u = await logada();
+    api.obterConta.mockRejectedValue(new api.ApiError(0, 'rede'));
+
+    fireEvent.click(u.getByText('atualizar conta'));
+    await esvaziar();
+
+    expect(u.getByText('estado: logado')).toBeInTheDocument();
+    expect(u.getByText('confirmado: false')).toBeInTheDocument();
+    expect(lerToken()).toBe('tok');
+  });
+
+  it('definirConta troca só a conta, sem consultar a API', async () => {
+    const u = await logada();
+    api.obterConta.mockClear();
+
+    fireEvent.click(u.getByText('definir conta'));
+    await esvaziar();
+
+    expect(u.getByText('confirmado: true')).toBeInTheDocument();
+    expect(u.getByText('loja: Moda Azul')).toBeInTheDocument();
+    expect(api.obterConta).not.toHaveBeenCalled();
   });
 });

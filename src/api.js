@@ -107,3 +107,12 @@ export const redefinirSenha = (token, novaSenha) =>
     token,
     nova_senha: novaSenha,
   });
+
+export const confirmarEmail = (token) =>
+  requisitar('POST', '/api/email/confirmar', { token });
+
+export const reenviarConfirmacao = (token) =>
+  requisitar('POST', '/api/conta/email/reenviar', undefined, token);
+
+export const trocarEmail = (token, email, senha) =>
+  requisitar('PUT', '/api/conta/email', { email, senha }, token);

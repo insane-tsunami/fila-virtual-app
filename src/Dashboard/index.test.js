@@ -335,3 +335,38 @@ describe('Atualização automática da fila', () => {
     expect(recusar).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Faixa de confirmação do e-mail na página', () => {
+  const NAO_CONFIRMADA = {
+    email: 'contato@modaazul.com',
+    cnpj: '93339970000105',
+    email_confirmado: false,
+  };
+
+  it('aparece quando o e-mail da conta não está confirmado', async () => {
+    const u = render(
+      <MemoryRouter>
+        <SessaoDeTeste valor={{ token: 'k', conta: NAO_CONFIRMADA }}>
+          <Dashboard />
+        </SessaoDeTeste>
+      </MemoryRouter>
+    );
+    await act(async () => {});
+
+    expect(u.getByText('Confirme seu e-mail.')).toBeInTheDocument();
+    expect(u.getByText('Reenviar e-mail')).toBeInTheDocument();
+  });
+
+  it('não aparece com o e-mail confirmado', async () => {
+    const u = render(
+      <MemoryRouter>
+        <SessaoDeTeste valor={{ token: 'k' }}>
+          <Dashboard />
+        </SessaoDeTeste>
+      </MemoryRouter>
+    );
+    await act(async () => {});
+
+    expect(u.queryByText('Confirme seu e-mail.')).toBeNull();
+  });
+});

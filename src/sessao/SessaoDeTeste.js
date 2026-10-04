@@ -7,6 +7,7 @@ import { SessaoContext } from './SessaoProvider';
 export const CONTA_DE_TESTE = {
   email: 'contato@modaazul.com',
   cnpj: '93339970000105',
+  email_confirmado: true,
 };
 
 export const LOJA_DE_TESTE = {
@@ -32,6 +33,8 @@ export default function SessaoDeTeste({ children, valor }) {
         expirar: jest.fn(),
         limparAviso: jest.fn(),
         atualizarLoja: jest.fn(),
+        atualizarConta: jest.fn(),
+        definirConta: jest.fn(),
         ...valor,
       }}
     >

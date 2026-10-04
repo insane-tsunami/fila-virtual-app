@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
+import ConfirmarEmail from './ConfirmarEmail';
 import Dashboard from './Dashboard';
 import {
   SessaoProvider,
@@ -39,6 +40,10 @@ function App() {
                 <Login />
               </RotaAnonima>
             </Route>
+            <Route path="/confirmar-email">
+              <ConfirmarEmail />
+            </Route>
+
             <Route path="/esqueci-senha">
               <RotaAnonima>
                 <EsqueciSenha />

@@ -322,6 +322,77 @@ describe('api', () => {
       expect(falha.status).toBe(422);
     });
 
+    it('confirmarEmail faz POST em /api/email/confirmar só com o token, sem Authorization', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(200, { mensagem: 'E-mail confirmado.' }));
+      const { confirmarEmail } = carregar('');
+
+      await expect(confirmarEmail('tok-do-email')).resolves.toEqual({
+        mensagem: 'E-mail confirmado.',
+      });
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/email/confirmar');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBeUndefined();
+      expect(JSON.parse(opcoes.body)).toEqual({ token: 'tok-do-email' });
+    });
+
+    it('reenviarConfirmacao faz POST em /api/conta/email/reenviar com o token da sessão e sem corpo', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(202, { mensagem: 'Enviamos.' }));
+      const { reenviarConfirmacao } = carregar('');
+
+      await reenviarConfirmacao('tok');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/conta/email/reenviar');
+      expect(opcoes.method).toBe('POST');
+      expect(opcoes.headers.Authorization).toBe('Bearer tok');
+      expect(opcoes.body).toBeUndefined();
+    });
+
+    it('trocarEmail faz PUT em /api/conta/email com o token, o e-mail novo e a senha', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(200, { conta: { email: 'novo@b.com' } }));
+      const { trocarEmail } = carregar('');
+
+      await trocarEmail('tok', 'novo@b.com', 'senha-1234');
+      const [url, opcoes] = global.fetch.mock.calls[0];
+      expect(url).toBe('/api/conta/email');
+      expect(opcoes.method).toBe('PUT');
+      expect(opcoes.headers.Authorization).toBe('Bearer tok');
+      expect(JSON.parse(opcoes.body)).toEqual({
+        email: 'novo@b.com',
+        senha: 'senha-1234',
+      });
+    });
+
+    it('os erros 409, 422 e 429 da confirmação viram ApiError com a mensagem da API', async () => {
+      const { trocarEmail, confirmarEmail, ApiError } = carregar('');
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(409, { erro: 'Já existe uma conta.' }));
+      const conflito = await trocarEmail('tok', 'a@b.com', 'x').catch((e) => e);
+      expect(conflito).toBeInstanceOf(ApiError);
+      expect(conflito.status).toBe(409);
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(422, { erro: 'Link inválido.' }));
+      await expect(confirmarEmail('x')).rejects.toMatchObject({
+        status: 422,
+        message: 'Link inválido.',
+      });
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(resposta(429, { erro: 'Muitas tentativas.' }));
+      await expect(confirmarEmail('x')).rejects.toMatchObject({ status: 429 });
+    });
+
     it('sair faz DELETE em /api/sessao e aceita a resposta 204 sem corpo', async () => {
       global.fetch = jest
         .fn()

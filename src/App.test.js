@@ -22,6 +22,9 @@ jest.mock('./api', () => {
     entrar: jest.fn(),
     cadastrar: jest.fn(),
     sair: jest.fn(),
+    confirmarEmail: jest.fn(),
+    pedirRedefinicao: jest.fn(),
+    redefinirSenha: jest.fn(),
     definirEndereco: jest.fn(),
     trocarSenha: jest.fn(),
   };
@@ -70,6 +73,23 @@ describe('Rotas públicas', () => {
 
     const login = await abrir('/login');
     expect(login.getByLabelText('Senha')).toBeInTheDocument();
+  });
+
+  it('a confirmação de e-mail abre sem login e, já logada, não redireciona para o dashboard', async () => {
+    api.confirmarEmail.mockResolvedValue({ mensagem: 'E-mail confirmado.' });
+    const anonima = await abrir(`/confirmar-email#token=${'c'.repeat(64)}`);
+    expect(anonima.getByText('E-mail confirmado.')).toBeInTheDocument();
+    expect(api.confirmarEmail).toHaveBeenCalledWith('c'.repeat(64));
+    expect(window.location.pathname).toBe('/confirmar-email');
+    expect(window.location.hash).toBe('');
+    anonima.unmount();
+
+    guardarToken('tok');
+    api.obterConta.mockResolvedValue(DADOS);
+    const logada = await abrir(`/confirmar-email#token=${'d'.repeat(64)}`);
+
+    expect(logada.getByText('E-mail confirmado.')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/confirmar-email');
   });
 
   it('a página pública da fila abre sem login', async () => {

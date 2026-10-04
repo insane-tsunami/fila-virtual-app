@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { FaQrcode } from 'react-icons/fa';
 import { Wrapper, Container, Content, Painel, InAttendance } from './styles';
 
+import AvisoEmail from './AvisoEmail';
 import BarraLateral from './BarraLateral';
 import { buscarLoja, definirEndereco } from '../api';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -96,6 +97,7 @@ export default function QrCode() {
     <Wrapper>
       <BarraLateral />
       <Container>
+        <AvisoEmail />
         <h1 className={classes.title}>Gerar QRCode</h1>
         <Content>
           <Painel size="55%">

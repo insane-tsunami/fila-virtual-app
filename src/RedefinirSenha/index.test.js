@@ -56,14 +56,15 @@ function renderTela(entrada = `/redefinir-senha#token=${TOKEN}`) {
         </Switch>
       </SessaoProvider>
       <Route
-        render={({ location }) => {
+        render={({ location, history }) => {
           atual.location = location;
+          atual.irPara = (destino) => history.push(destino);
           return null;
         }}
       />
     </MemoryRouter>
   );
-  return { ...u, atual };
+  return { ...u, atual, irPara: (destino) => atual.irPara(destino) };
 }
 
 const esvaziar = async () => {
@@ -121,6 +122,24 @@ describe('Redefinir a senha', () => {
         /rota: \/login aviso: Senha alterada\. Entre com a nova senha\./
       )
     ).toBeInTheDocument();
+  });
+
+  it('um link novo aberto na mesma página (só o fragmento muda) troca o token', async () => {
+    api.redefinirSenha.mockResolvedValue({ mensagem: 'Senha alterada.' });
+    const u = renderTela();
+    await esvaziar();
+
+    act(() => {
+      u.irPara(`/redefinir-senha#token=${'f'.repeat(64)}`);
+    });
+    await esvaziar();
+    preencher(u, 'senha-nova-22');
+    await enviar(u);
+
+    expect(api.redefinirSenha).toHaveBeenCalledWith(
+      'f'.repeat(64),
+      'senha-nova-22'
+    );
   });
 
   it('link sem token: avisa e oferece pedir um novo, sem formulário', async () => {
