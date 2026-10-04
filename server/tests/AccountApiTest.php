@@ -35,7 +35,7 @@ final class AccountApiTest extends ApiTestCase
         $this->assertSame(201, $resposta->getStatusCode());
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $corpo['token']);
         $this->assertArrayHasKey('expira_em', $corpo);
-        $this->assertSame(['email' => 'contato@modaazul.com', 'cnpj' => '93339970000105'], $corpo['conta']);
+        $this->assertSame(['email' => 'contato@modaazul.com', 'cnpj' => '93339970000105', 'email_confirmado' => false], $corpo['conta']);
         $this->assertSame(
             ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
             $corpo['loja']
@@ -229,7 +229,7 @@ final class AccountApiTest extends ApiTestCase
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame([
-            'conta' => ['email' => 'a@exemplo.com', 'cnpj' => '93339970000105'],
+            'conta' => ['email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false],
             'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
         ], $this->json($resposta));
     }

@@ -95,3 +95,24 @@ export const InAttendance = styled.div`
     border: 1px solid #e10050;
   }
 `;
+
+export const FaixaAviso = styled.div`
+  background-color: #ffffff;
+  color: #12014f;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+
+  p {
+    margin: 0;
+    flex: 1 1 280px;
+  }
+
+  strong {
+    margin-right: 4px;
+  }
+`;

@@ -38,7 +38,9 @@ abstract class ApiTestCase extends DatabaseTestCase
     /** @param array<string, mixed> $config */
     protected function app(array $config = []): App
     {
-        $padrao = ['cors_origin' => ''];
+        // O envio de e-mail e os avisos vão para o ralo, a não ser que o teste passe o seu `mailer`/`registrar`.
+        $padrao = ['cors_origin' => '', 'registrar' => static function (string $mensagem): void {
+        }];
 
         return Aplicacao::criar(
             array_merge($padrao, $config),

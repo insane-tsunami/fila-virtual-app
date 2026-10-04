@@ -122,6 +122,31 @@ export function SessaoProvider({ children }) {
     []
   );
 
+  // Reconsulta a conta (ex.: o e-mail foi confirmado em outro aparelho). Devolve a conta
+  // nova; 401 expira a sessão; falha de rede chega a quem chamou, sem derrubar a sessão.
+  const atualizarConta = useCallback(async () => {
+    try {
+      const dados = await api.obterConta(token);
+      setSessao((atual) => ({
+        ...atual,
+        conta: dados.conta,
+        loja: dados.loja,
+      }));
+      return dados.conta;
+    } catch (e) {
+      if (e.status === 401) {
+        expirar();
+        return null;
+      }
+      throw e;
+    }
+  }, [token, expirar]);
+
+  const definirConta = useCallback(
+    (nova) => setSessao((atual) => ({ ...atual, conta: nova })),
+    []
+  );
+
   const valor = useMemo(
     () => ({
       estado,
@@ -136,6 +161,8 @@ export function SessaoProvider({ children }) {
       expirar,
       limparAviso,
       atualizarLoja,
+      atualizarConta,
+      definirConta,
     }),
     [
       estado,
@@ -150,6 +177,8 @@ export function SessaoProvider({ children }) {
       expirar,
       limparAviso,
       atualizarLoja,
+      atualizarConta,
+      definirConta,
     ]
   );
 

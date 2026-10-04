@@ -26,6 +26,7 @@ final class MigrationTest extends DatabaseTestCase
             '0005_create_contas_e_sessoes',
             '0006_create_limites_tentativas',
             '0007_create_redefinicoes_senha',
+            '0008_add_email_confirmado_e_confirmacoes_email',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -80,6 +81,49 @@ final class MigrationTest extends DatabaseTestCase
 
         $this->expectException(QueryException::class);
         $this->db->table('redefinicoes_senha')->insert(['token_hash' => str_repeat('b', 64)] + $linha);
+    }
+
+    public function testCriaAColunaDeEmailConfirmadoEATabelaDeConfirmacoes(): void
+    {
+        $this->migrate();
+        $this->assertTrue($this->db->schema()->hasColumn('contas', 'email_confirmado_em'));
+        $this->assertTrue($this->db->schema()->hasColumns(
+            'confirmacoes_email',
+            ['id', 'conta_id', 'email', 'token_hash', 'criado_em', 'expira_em']
+        ));
+        $contaId = $this->db->table('contas')->insertGetId([
+            'email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'senha_hash' => 'x', 'criado_em' => '2030-01-01 00:00:00',
+        ]);
+        $linha = [
+            'conta_id' => $contaId, 'email' => 'a@exemplo.com', 'token_hash' => str_repeat('a', 64),
+            'criado_em' => '2030-01-01 00:00:00', 'expira_em' => '2030-01-02 00:00:00',
+        ];
+        $this->db->table('confirmacoes_email')->insert($linha);
+
+        $this->expectException(QueryException::class);
+        $this->db->table('confirmacoes_email')->insert(['token_hash' => str_repeat('b', 64)] + $linha);
+    }
+
+    public function testContasAnterioresAMigracaoFicamComEmailNaoConfirmado(): void
+    {
+        $dir = sys_get_temp_dir() . '/migracoes-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        foreach (glob(__DIR__ . '/../database/migrations/000[1234567]_*.php') as $arquivo) {
+            copy($arquivo, $dir . '/' . basename($arquivo));
+        }
+        (new Migrator($this->db, $dir))->run();
+        $this->db->table('contas')->insert([
+            'email' => 'antiga@exemplo.com', 'cnpj' => '93339970000105', 'senha_hash' => 'x', 'criado_em' => '2030-01-01 00:00:00',
+        ]);
+
+        $executadas = $this->migrator()->run();
+
+        $this->assertSame(['0008_add_email_confirmado_e_confirmacoes_email'], $executadas);
+        $conta = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->first();
+        $this->assertNull($conta->email_confirmado_em, 'sem anistia: a conta antiga não está confirmada');
+
+        array_map('unlink', glob($dir . '/*.php'));
+        rmdir($dir);
     }
 
     public function testCriaAsTabelasDeContasESessoes(): void
@@ -195,7 +239,12 @@ final class MigrationTest extends DatabaseTestCase
 
         $executadas = $this->migrator()->run();
 
-        $this->assertSame(['0005_create_contas_e_sessoes', '0006_create_limites_tentativas', '0007_create_redefinicoes_senha'], $executadas);
+        $this->assertSame([
+            '0005_create_contas_e_sessoes',
+            '0006_create_limites_tentativas',
+            '0007_create_redefinicoes_senha',
+            '0008_add_email_confirmado_e_confirmacoes_email',
+        ], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
         $this->assertNull($loja->conta_id);
         $this->assertSame('https://loja.exemplo.com', $loja->endereco_publico);
@@ -222,6 +271,7 @@ final class MigrationTest extends DatabaseTestCase
             '0005_create_contas_e_sessoes',
             '0006_create_limites_tentativas',
             '0007_create_redefinicoes_senha',
+            '0008_add_email_confirmado_e_confirmacoes_email',
         ], $executadas);
         $this->assertSame(2, $this->db->table('estabelecimentos')->count(), 'as linhas existentes continuam');
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'outra-loja')->value('endereco_publico'));

@@ -52,8 +52,10 @@ final class RecuperacaoSenhaService
         $this->limite?->consumir(LimiteDeTentativas::ESQUECI_IP, LimiteDeTentativas::chave($ip));
         $this->limite?->consumir(LimiteDeTentativas::ESQUECI_EMAIL, LimiteDeTentativas::chave($normalizado));
 
+        // Só e-mail confirmado recebe o link: um endereço não provado (digitado errado ou de outra
+        // pessoa) não pode tomar a conta. Para ele a resposta é a mesma de uma conta que não existe.
         $conta = Conta::query()->where('email', $normalizado)->first();
-        if ($conta === null) {
+        if ($conta === null || $conta->email_confirmado_em === null) {
             return self::MENSAGEM_PEDIDO;
         }
         if ($this->appUrl === '') {

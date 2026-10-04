@@ -51,7 +51,7 @@ final class ContaServiceTest extends DatabaseTestCase
         $resposta = $this->contas->cadastrar($this->corpo());
 
         $this->assertSame(64, strlen($resposta['token']));
-        $this->assertSame(['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105'], $resposta['conta']);
+        $this->assertSame(['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false], $resposta['conta']);
         $this->assertSame(
             ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
             $resposta['loja']
@@ -253,7 +253,7 @@ final class ContaServiceTest extends DatabaseTestCase
         $id = (int) $this->db->table('contas')->value('id');
 
         $this->assertSame([
-            'conta' => ['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105'],
+            'conta' => ['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false],
             'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
         ], $this->contas->dados($id));
     }

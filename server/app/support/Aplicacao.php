@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Support;
 
 use Controllers\ClienteController;
+use Controllers\ConfirmacaoEmailController;
 use Controllers\ContaController;
 use Controllers\DashboardController;
 use Controllers\LojaController;
@@ -17,6 +18,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Services\AcessoNegadoException;
 use Services\ConflitoException;
+use Services\ConfirmacaoEmailService;
 use Services\ContaService;
 use Services\DadosInvalidosException;
 use Services\FabricaDeMailer;
@@ -63,8 +65,6 @@ final class Aplicacao
             : null;
         $proxies = $config['trusted_proxies'] ?? [];
         $sessoes = new SessaoService($limite);
-        $conta = new ContaController(new ContaService($sessoes, $limite), $proxies);
-        $sessao = new SessaoController($sessoes, $proxies);
         // E-mail: `mailer` (um objeto Mailer, nos testes) tem prioridade sobre o driver da configuração.
         $registrar = $config['registrar'] ?? static function (string $mensagem): void {
             error_log('[api] ' . $mensagem);
@@ -72,8 +72,13 @@ final class Aplicacao
         $mailer = ($config['mailer'] ?? null) instanceof Mailer
             ? $config['mailer']
             : FabricaDeMailer::criar($config['mail'] ?? [], $registrar);
+        $appUrl = (string) ($config['app_url'] ?? '');
+        $confirmacao = new ConfirmacaoEmailService($mailer, $appUrl, $limite, $registrar);
+        $conta = new ContaController(new ContaService($sessoes, $limite, $confirmacao), $proxies);
+        $sessao = new SessaoController($sessoes, $proxies);
+        $confirmar = new ConfirmacaoEmailController($confirmacao, $proxies);
         $recuperacao = new RecuperacaoSenhaController(
-            new RecuperacaoSenhaService($sessoes, $mailer, (string) ($config['app_url'] ?? ''), $limite, $registrar),
+            new RecuperacaoSenhaService($sessoes, $mailer, $appUrl, $limite, $registrar),
             $proxies
         );
         $autenticada = new Autenticacao($sessoes);
@@ -90,6 +95,11 @@ final class Aplicacao
         $app->delete('/api/sessao', [$sessao, 'sair'])->add($autenticada);
         $app->get('/api/conta', [$conta, 'dados'])->add($autenticada);
         $app->put('/api/conta/senha', [$conta, 'trocarSenha'])->add($autenticada);
+
+        // Confirmação do e-mail: confirmar é público (o link abre em qualquer aparelho); o resto exige sessão
+        $app->post('/api/email/confirmar', [$confirmar, 'confirmar']);
+        $app->post('/api/conta/email/reenviar', [$confirmar, 'reenviar'])->add($autenticada);
+        $app->put('/api/conta/email', [$confirmar, 'trocarEmail'])->add($autenticada);
 
         // "Esqueci a senha": públicas
         $app->post('/api/senha/esqueci', [$recuperacao, 'pedir']);

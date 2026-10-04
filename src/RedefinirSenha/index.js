@@ -40,14 +40,17 @@ export default function RedefinirSenha() {
   const classes = useStyles();
   const history = useHistory();
   const location = useLocation();
-  const [token] = useState(() => lerToken(location.hash));
+  const [token, setToken] = useState(() => lerToken(location.hash));
   const [nova, setNova] = useState('');
   const [confirmacao, setConfirmacao] = useState('');
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  // Tira o token do endereço assim que ele foi lido.
+  // Tira o token do endereço assim que ele foi lido. Um link novo aberto nesta mesma página
+  // (só o fragmento muda, a página não recarrega) troca o token.
   useEffect(() => {
+    const novo = lerToken(location.hash);
+    if (novo) setToken(novo);
     if (location.hash) history.replace(location.pathname);
   }, [history, location.hash, location.pathname]);
 

@@ -24,6 +24,7 @@ final class ContaService
     public function __construct(
         private readonly SessaoService $sessoes,
         private readonly ?LimiteDeTentativas $limite = null,
+        private readonly ?ConfirmacaoEmailService $confirmacao = null,
     )
     {
     }
@@ -32,7 +33,7 @@ final class ContaService
      * Cria conta, loja e sessão em uma transação: ou tudo, ou nada.
      *
      * @param array<mixed> $corpo
-     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
+     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
      */
     public function cadastrar(array $corpo, string $ip = IpDoCliente::DESCONHECIDO): array
     {
@@ -61,7 +62,8 @@ final class ContaService
             throw new DadosInvalidosException(Senha::MENSAGEM_INVALIDA);
         }
 
-        return Capsule::connection()->transaction(function () use ($email, $cnpj, $nome, $base, $senha): array {
+        $conta = null;
+        $resposta = Capsule::connection()->transaction(function () use ($email, $cnpj, $nome, $base, $senha, &$conta): array {
             if (Conta::query()->where('email', $email)->exists()) {
                 throw new ConflitoException('Já existe uma conta com este e-mail.');
             }
@@ -79,9 +81,14 @@ final class ContaService
 
             return $this->sessoes->abrir($conta);
         });
+
+        // Depois do commit: a falha do envio (que só vai para o log) não pode desfazer o cadastro.
+        $this->confirmacao?->enviar($conta);
+
+        return $resposta;
     }
 
-    /** @return array{conta: array{email: string, cnpj: string}, loja: array{nome: string, slug: string, endereco_publico: string|null}} */
+    /** @return array{conta: array{email: string, cnpj: string, email_confirmado: bool}, loja: array{nome: string, slug: string, endereco_publico: string|null}} */
     public function dados(int $contaId): array
     {
         $conta = Conta::query()->find($contaId) ?? throw new NaoEncontradoException('Conta não encontrada.');
@@ -89,7 +96,7 @@ final class ContaService
             ?? throw new NaoEncontradoException('Esta conta não tem loja.');
 
         return [
-            'conta' => ['email' => $conta->email, 'cnpj' => $conta->cnpj],
+            'conta' => $conta->paraResposta(),
             'loja' => [
                 'nome' => $loja->nome,
                 'slug' => $loja->slug,

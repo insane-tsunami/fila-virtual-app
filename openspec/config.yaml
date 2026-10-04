@@ -15,13 +15,16 @@ context: |
   endereco_publico, conta_id), contas (e-mail, CNPJ numérico ou alfanumérico com dígito verificador conferido e
   guardado em maiúsculas, hash da senha), sessoes
   (hash do token, validade), limites_tentativas (contadores), redefinicoes_senha
-  (hash do token, 1 hora, uso único) e entradas_fila (migrações em
+  (hash do token, 1 hora, uso único), confirmacoes_email (hash do token, 24 horas,
+  uso único, preso ao e-mail) e entradas_fila (migrações em
   server/database/migrations). Cada conta é dona de uma loja criada no cadastro.
   API pública: POST /api/contas (cadastro), POST /api/sessoes (login),
   POST /api/senha/esqueci e POST /api/senha/redefinir (esqueci a senha),
+  POST /api/email/confirmar (confirmação do e-mail),
   GET /api/filas/{slug} e as chamadas do cliente em /api/filas/{slug}/entradas.
   API com sessão (Authorization: Bearer <token>, 7 dias, token só como hash no
-  banco): GET /api/conta, PUT /api/conta/senha, DELETE /api/sessao e, só para a
+  banco): GET /api/conta, PUT /api/conta/senha, POST /api/conta/email/reenviar,
+  PUT /api/conta/email (trocar o e-mail enquanto não confirmado), DELETE /api/sessao e, só para a
   loja da própria conta, listar a fila, finalizar e PUT /api/filas/{slug}/endereco
   (specs queue-intake, queue-management, store-address, establishment-account,
   account-session e api-platform). A antiga chave X-API-Key foi removida.
@@ -39,7 +42,14 @@ context: |
   MAIL_DRIVER (desligado por padrão, log só em desenvolvimento, smtp via
   symfony/mailer com MAIL_DSN e MAIL_FROM); APP_URL é a base do link; limites em
   RATE_LIMIT_ESQUECI_* e RATE_LIMIT_REDEFINIR_IP.
-  Pendências: avatar, confirmação de e-mail. Node 16 fixado para o front.
+  Confirmação de e-mail (spec email-confirmation): a conta nasce com e-mail não
+  confirmado (contas.email_confirmado_em nulo; email_confirmado nas respostas de
+  cadastro, login e GET /api/conta), entra e usa o dashboard normalmente (faixa
+  "Confirme seu e-mail"); o esqueci a senha só envia o link para e-mail confirmado;
+  trocar o e-mail só enquanto não confirmado e com a senha atual; as contas que já
+  existiam ficam não confirmadas; link /confirmar-email#token=... (rota pública,
+  também aberta com login); limites RATE_LIMIT_CONFIRMACAO_* e RATE_LIMIT_CONFIRMAR_IP.
+  Pendências: avatar. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

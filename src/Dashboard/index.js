@@ -14,6 +14,7 @@ import {
   InAttendance,
 } from './styles';
 
+import AvisoEmail from './AvisoEmail';
 import BarraLateral from './BarraLateral';
 import useFila from './useFila';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -65,6 +66,7 @@ export default function Dashboard() {
     <Wrapper>
       <BarraLateral />
       <Container>
+        <AvisoEmail />
         <h1 className={classes.title}>Dashboard</h1>
         <Content>
           <Painel size="300px">

@@ -17,6 +17,7 @@ final class RateLimitApiTest extends ApiTestCase
         'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
         'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
         'esqueci_email' => 3, 'esqueci_ip' => 10, 'esqueci_janela_minutos' => 60, 'redefinir_ip' => 20,
+        'confirmacao_conta' => 3, 'confirmacao_janela_minutos' => 60, 'confirmar_ip' => 20,
     ];
 
     /** @var list<string> */
@@ -59,6 +60,7 @@ final class RateLimitApiTest extends ApiTestCase
     private function conta(): void
     {
         $this->cadastrarConta('Moda Azul', self::EMAIL, '93339970000105');
+        $this->db->table('contas')->update(['email_confirmado_em' => gmdate('Y-m-d H:i:s')]);
         $this->db->table('limites_tentativas')->delete();
         $this->db->table('sessoes')->delete();
     }
@@ -542,5 +544,177 @@ final class RateLimitApiTest extends ApiTestCase
         $this->enderecoRemoto = '203.0.113.50';
 
         $this->assertSame(422, $this->redefinir(str_repeat('f', 64))->getStatusCode());
+    }
+
+    // --- Confirmação do e-mail --------------------------------------------------------------
+
+    /** Cadastra pela API (com limites e mailer em memória) e devolve o token da sessão. */
+    private function cadastrarComConfirmacao(string $email = self::EMAIL, string $cnpj = '93339970000105'): string
+    {
+        $resposta = $this->api('POST', '/api/contas', [
+            'email' => $email, 'cnpj' => $cnpj, 'nome' => 'Moda Azul', 'senha' => self::SENHA,
+        ]);
+        $this->assertSame(201, $resposta->getStatusCode());
+
+        return $this->json($resposta)['token'];
+    }
+
+    private function reenviarConfirmacao(string $sessao): ResponseInterface
+    {
+        return $this->api('POST', '/api/conta/email/reenviar', null, $this->comSessao($sessao));
+    }
+
+    private function trocarEmail(string $sessao, string $email, string $senha = self::SENHA): ResponseInterface
+    {
+        return $this->api('PUT', '/api/conta/email', ['email' => $email, 'senha' => $senha], $this->comSessao($sessao));
+    }
+
+    private function confirmarEmail(?string $token): ResponseInterface
+    {
+        return $this->api('POST', '/api/email/confirmar', ['token' => $token]);
+    }
+
+    public function testQuartoEnvioDeConfirmacaoNaHoraEBloqueadoSemEnviarEmail(): void
+    {
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+        $this->mailer->enviados = [];
+        $status = [];
+        for ($i = 0; $i < 4; $i++) {
+            $status[] = $this->reenviarConfirmacao($sessao)->getStatusCode();
+        }
+
+        $this->assertSame([202, 202, 202, 429], $status);
+        $this->assertCount(3, $this->mailer->enviados, 'o quarto envio não manda e-mail');
+    }
+
+    public function testReenviarETrocarOEmailContamNoMesmoLimite(): void
+    {
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+
+        $this->assertSame(202, $this->reenviarConfirmacao($sessao)->getStatusCode());
+        $this->assertSame(200, $this->trocarEmail($sessao, 'novo1@exemplo.com')->getStatusCode());
+        $this->assertSame(200, $this->trocarEmail($sessao, 'novo2@exemplo.com')->getStatusCode());
+
+        $this->assertSame(429, $this->reenviarConfirmacao($sessao)->getStatusCode());
+        $quarta = $this->trocarEmail($sessao, 'novo3@exemplo.com');
+        $this->assertSame(429, $quarta->getStatusCode());
+        $this->assertSame('novo2@exemplo.com', $this->json(
+            $this->api('GET', '/api/conta', null, $this->comSessao($sessao))
+        )['conta']['email'], 'a troca bloqueada não muda o e-mail');
+    }
+
+    public function testFormatoDoBloqueioDaConfirmacao(): void
+    {
+        $this->limites['confirmacao_conta'] = 1;
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+        $this->reenviarConfirmacao($sessao);
+
+        $resposta = $this->reenviarConfirmacao($sessao);
+        $segundos = (int) $resposta->getHeaderLine('Retry-After');
+
+        $this->assertSame(429, $resposta->getStatusCode());
+        $this->assertGreaterThan(0, $segundos);
+        $this->assertLessThanOrEqual(3600, $segundos);
+        $this->assertSame('Muitas tentativas. Tente de novo em 60 minutos.', $this->json($resposta)['erro']);
+    }
+
+    public function testOutraContaNaoEAfetadaPeloBloqueioDoReenvio(): void
+    {
+        $a = $this->cadastrarComConfirmacao();
+        $b = $this->cadastrarComConfirmacao('b@exemplo.com', '12ABC34501DE35');
+        $this->db->table('limites_tentativas')->delete();
+        for ($i = 0; $i < 3; $i++) {
+            $this->reenviarConfirmacao($a);
+        }
+
+        $this->assertSame(429, $this->reenviarConfirmacao($a)->getStatusCode());
+        $this->assertSame(202, $this->reenviarConfirmacao($b)->getStatusCode());
+    }
+
+    public function testSenhaErradaNaTrocaDeEmailEDeSenhaCompartilhamOLimite(): void
+    {
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+        $erroSenha = fn () => $this->api(
+            'PUT',
+            '/api/conta/senha',
+            ['senha_atual' => 'errada-errada', 'nova_senha' => 'outra-senha-22'],
+            $this->comSessao($sessao)
+        )->getStatusCode();
+
+        $this->assertSame([422, 422, 422], [$erroSenha(), $erroSenha(), $erroSenha()]);
+        $this->assertSame(422, $this->trocarEmail($sessao, 'novo@exemplo.com', 'errada-errada')->getStatusCode());
+        $this->assertSame(422, $this->trocarEmail($sessao, 'novo@exemplo.com', 'errada-errada')->getStatusCode());
+
+        $this->assertSame(429, $this->trocarEmail($sessao, 'novo@exemplo.com')->getStatusCode(), 'mesmo com a senha certa');
+    }
+
+    public function testVigesimoPrimeiroTokenInvalidoNaConfirmacaoBloqueiaMesmoComTokenValido(): void
+    {
+        $this->limites['confirmar_ip'] = 3;
+        $sessao = $this->cadastrarComConfirmacao();
+        $valido = $this->mailer->ultimoToken();
+        for ($i = 0; $i < 3; $i++) {
+            $this->assertSame(422, $this->confirmarEmail(str_repeat('f', 64))->getStatusCode());
+        }
+
+        $this->assertSame(429, $this->confirmarEmail($valido)->getStatusCode());
+        $this->assertFalse($this->json(
+            $this->api('GET', '/api/conta', null, $this->comSessao($sessao))
+        )['conta']['email_confirmado']);
+    }
+
+    public function testConfirmacaoConcluidaNaoContaNoLimite(): void
+    {
+        $this->limites['confirmar_ip'] = 1;
+        $this->cadastrarComConfirmacao();
+
+        $this->assertSame(200, $this->confirmarEmail($this->mailer->ultimoToken())->getStatusCode());
+        $this->assertSame(0, $this->db->table('limites_tentativas')->where('escopo', 'confirmar_ip')->count());
+    }
+
+    public function testBloqueioDaConfirmacaoNaoAfetaOutroIp(): void
+    {
+        $this->limites['confirmar_ip'] = 1;
+        $this->confirmarEmail(str_repeat('f', 64));
+        $this->assertSame(429, $this->confirmarEmail(str_repeat('f', 64))->getStatusCode());
+
+        $this->enderecoRemoto = '203.0.113.50';
+
+        $this->assertSame(422, $this->confirmarEmail(str_repeat('f', 64))->getStatusCode());
+    }
+
+    public function testLimiteDeConfirmacaoConfiguradoValeNoSegundoEnvio(): void
+    {
+        $this->limites['confirmacao_conta'] = 1;
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+
+        $this->assertSame(202, $this->reenviarConfirmacao($sessao)->getStatusCode());
+        $this->assertSame(429, $this->reenviarConfirmacao($sessao)->getStatusCode());
+    }
+
+    public function testTrocaDeEmailBemSucedidaZeraOContadorDeSenhaDaConta(): void
+    {
+        $sessao = $this->cadastrarComConfirmacao();
+        $this->db->table('limites_tentativas')->delete();
+        $erroSenha = fn () => $this->api(
+            'PUT',
+            '/api/conta/senha',
+            ['senha_atual' => 'errada-errada', 'nova_senha' => 'outra-senha-22'],
+            $this->comSessao($sessao)
+        )->getStatusCode();
+        for ($i = 0; $i < 4; $i++) {
+            $this->assertSame(422, $erroSenha());
+        }
+
+        $this->assertSame(200, $this->trocarEmail($sessao, 'novo@exemplo.com')->getStatusCode());
+
+        for ($i = 0; $i < 4; $i++) {
+            $this->assertSame(422, $erroSenha(), 'volta a poder errar sem bloqueio');
+        }
     }
 }
