@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import QrCode from './Dashboard/Qrcode';
 import Perfil from './Dashboard/Perfil';
+import Cliente from './Cliente';
 import Home from './Home';
 import Login from './Login';
 import Register from './Register';
@@ -32,6 +33,10 @@ function App() {
 
           <Route path="/dashboard/qrcode">
             <QrCode />
+          </Route>
+
+          <Route path="/fila/:slug">
+            <Cliente />
           </Route>
 
           <Route path="/dashboard/perfil">

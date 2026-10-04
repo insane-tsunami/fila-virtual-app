@@ -6,6 +6,7 @@ namespace Support;
 
 use Controllers\ClienteController;
 use Controllers\DashboardController;
+use Controllers\LojaController;
 use Middleware\ChaveDeApi;
 use Middleware\Cors;
 use Psr\Http\Message\ResponseInterface;
@@ -13,6 +14,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Services\ConflitoException;
 use Services\DadosInvalidosException;
 use Services\FilaService;
+use Services\LojaService;
 use Services\NaoEncontradoException;
 use Slim\App;
 use Slim\Exception\HttpBadRequestException;
@@ -41,15 +43,18 @@ final class Aplicacao
         $fila = new FilaService();
         $cliente = new ClienteController($fila);
         $dashboard = new DashboardController($fila);
+        $loja = new LojaController(new LojaService());
         $chave = new ChaveDeApi((string) ($config['api_key'] ?? ''));
 
         // Cliente (públicas)
         $app->post('/api/filas/{slug}/entradas', [$cliente, 'entrar']);
         $app->get('/api/filas/{slug}/entradas/{codigo}', [$cliente, 'consultar']);
+        $app->get('/api/filas/{slug}', [$loja, 'dados']);
 
         // Dashboard (chave provisória)
         $app->get('/api/filas/{slug}/entradas', [$dashboard, 'listar'])->add($chave);
         $app->post('/api/filas/{slug}/entradas/{codigo}/finalizar', [$dashboard, 'finalizar'])->add($chave);
+        $app->put('/api/filas/{slug}/endereco', [$loja, 'definirEndereco'])->add($chave);
 
         // Ordem de execução: Cors (mais externo) -> erros -> roteamento -> rota.
         $app->addRoutingMiddleware();

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $id
  * @property string $nome
  * @property string $slug
+ * @property string|null $endereco_publico
  */
 final class Estabelecimento extends Model
 {
