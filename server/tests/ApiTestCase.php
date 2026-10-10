@@ -30,6 +30,7 @@ abstract class ApiTestCase extends DatabaseTestCase
     {
         parent::setUp();
         $this->migrate();
+        $this->semearDemonstracao();
         $this->errosLogados = [];
         $this->tokenDaDona = null;
         $this->enderecoRemoto = null;

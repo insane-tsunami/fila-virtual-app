@@ -189,7 +189,7 @@ final class AccountApiTest extends ApiTestCase
         $this->assertSame('moda-cia-sao-joao', $corpo['loja']['slug']);
     }
 
-    public function testNomesRepetidosGanhamSufixoInclusiveAoDaLojaDePartida(): void
+    public function testNomesRepetidosGanhamSufixoInclusiveAoDaDemonstracaoSemeada(): void
     {
         $a = $this->cadastrarConta('Veste Bem', 'a@exemplo.com', '93339970000105');
         $b = $this->cadastrarConta('Veste Bem', 'b@exemplo.com', '11111111000191');

@@ -1,0 +1,34 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Support\Database;
+use Support\LojaDeDemonstracao;
+
+$config = require __DIR__ . '/../api/config.php';
+
+// Confere o driver antes de conectar: a demonstração é para desenvolvimento.
+if (($config['db']['driver'] ?? '') === 'mysql' && !in_array('--forcar', $argv, true)) {
+    fwrite(STDERR, 'DB_DRIVER=mysql: a loja de demonstração é para desenvolvimento. '
+        . 'Use --forcar se tiver certeza de que quer criá-la neste banco.' . PHP_EOL);
+    exit(1);
+}
+
+try {
+    $db = Database::connect($config['db']);
+    if (!$db->schema()->hasTable('estabelecimentos')) {
+        fwrite(STDERR, 'Banco sem tabelas: rode `php bin/migrate` antes.' . PHP_EOL);
+        exit(1);
+    }
+    $criada = LojaDeDemonstracao::semear($db);
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Falha ao criar a loja de demonstração: ' . $e->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+echo $criada
+    ? 'Loja de demonstração criada: ' . LojaDeDemonstracao::SLUG . PHP_EOL
+    : 'A loja ' . LojaDeDemonstracao::SLUG . ' já existe: nada a fazer.' . PHP_EOL;
