@@ -22,6 +22,7 @@ final class ContaServiceTest extends DatabaseTestCase
     {
         parent::setUp();
         $this->migrate();
+        $this->semearDemonstracao();
         $this->sessoes = new SessaoService();
         $this->contas = new ContaService($this->sessoes);
     }
@@ -161,12 +162,21 @@ final class ContaServiceTest extends DatabaseTestCase
         $this->assertSame('moda-azul-3', $c['loja']['slug']);
     }
 
-    public function testSlugDaLojaDePartidaContinuaOcupado(): void
+    public function testSlugDaDemonstracaoSemeadaContinuaOcupado(): void
     {
         $resposta = $this->contas->cadastrar($this->corpo(['nome' => 'Veste Bem']));
 
         $this->assertSame('veste-bem-2', $resposta['loja']['slug']);
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('conta_id'));
+    }
+
+    public function testPrimeiraLojaChamadaVesteBemEmBancoSemADemonstracaoFicaComOSlugLivre(): void
+    {
+        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->delete();
+
+        $resposta = $this->contas->cadastrar($this->corpo(['nome' => 'Veste Bem']));
+
+        $this->assertSame('veste-bem', $resposta['loja']['slug']);
     }
 
     public function testSufixoCabeNosOitentaCaracteres(): void

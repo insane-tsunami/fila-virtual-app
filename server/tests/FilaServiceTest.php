@@ -19,6 +19,7 @@ final class FilaServiceTest extends DatabaseTestCase
     {
         parent::setUp();
         $this->migrate();
+        $this->semearDemonstracao();
         $this->fila = new FilaService();
     }
 

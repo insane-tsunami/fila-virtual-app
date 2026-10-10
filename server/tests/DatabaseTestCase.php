@@ -8,6 +8,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Support\Database;
+use Support\LojaDeDemonstracao;
 use Support\Migrator;
 
 /**
@@ -60,5 +61,11 @@ abstract class DatabaseTestCase extends TestCase
     protected function criarEstabelecimento(string $slug = 'loja-teste', string $nome = 'Loja Teste'): int
     {
         return (int) $this->db->table('estabelecimentos')->insertGetId(['nome' => $nome, 'slug' => $slug]);
+    }
+
+    /** Semeia a `veste-bem` (o banco migrado não a traz mais); idempotente. */
+    protected function semearDemonstracao(): void
+    {
+        LojaDeDemonstracao::semear($this->db);
     }
 }

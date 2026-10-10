@@ -53,7 +53,7 @@ Nunca commite valores reais de banco. (A antiga variável `API_KEY` não existe 
 php bin/migrate        # ou: composer migrate
 ```
 
-Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e insere o estabelecimento de partida (`Veste Bem`, slug `veste-bem`). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
+Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e não insere nenhuma loja: em banco novo, cada loja nasce do cadastro. A `0009` remove a `veste-bem` herdada de bancos antigos, só se não tiver dona nem entradas na fila (se tiver entradas, mantém e avisa no log do PHP). É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
 
 > No MySQL, comandos de criação de tabela não são transacionais. Se uma migração falhar no meio, confira a tabela `migrations` e o que foi criado antes de rodar de novo.
 
@@ -65,10 +65,13 @@ Com SQLite não é preciso instalar um servidor de banco:
 export DB_DRIVER=sqlite DB_NAME=/tmp/zerafilas.sqlite
 touch "$DB_NAME"
 php bin/migrate
+php bin/seed-demo      # opcional: cria a loja de demonstração `veste-bem` (ou: composer seed-demo)
 php -S localhost:8080 -t public
 ```
 
 O servidor embutido do PHP serve só para desenvolvimento.
+
+A `veste-bem` é só uma demonstração, sem dona e sem endereço público: a página pública dela funciona, mas ninguém a acessa pelo dashboard. `php bin/seed-demo` é idempotente e exige a migração feita antes. Com `DB_DRIVER=mysql` ele recusa rodar, a menos que se passe `--forcar` (`php bin/seed-demo --forcar`), para não criar a demonstração em produção por engano. Os exemplos de `curl` abaixo usam essa loja: rode o `seed-demo` antes deles.
 
 ## Testes
 
@@ -241,9 +244,10 @@ server/
   app/services/      FilaService, LojaService, ContaService (cadastro, troca de senha), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
   app/models/        Estabelecimento, EntradaFila, Conta e Sessao
   app/middleware/    Cors, Autenticacao (token) e LojaDaConta (posse da loja)
-  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, Json
+  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, LojaDeDemonstracao, Json
   database/migrations/
   bin/migrate        runner de migrações
+  bin/seed-demo      cria a loja de demonstração `veste-bem` (desenvolvimento)
   tests/
 ```
 
@@ -258,7 +262,7 @@ A hospedagem ainda não foi definida. O código não depende de nenhum provedor:
 - **O limite de tentativas cobre só login, cadastro e troca de senha** (ver [Limite de tentativas](#limite-de-tentativas)): não há limite de requisições em geral nem nas rotas públicas da fila. Atrás de proxy, configure `TRUSTED_PROXIES`, senão o limite por IP vale para todos juntos.
 - **A confirmação de e-mail não prova o CNPJ e não impede o bloqueio por cadastro alheio:** quem cadastra o e-mail de outra pessoa a bloqueia (o e-mail é único, a conta não confirmada ocupa o endereço e o dono de verdade leva `409`). Uma conta não confirmada com a senha esquecida não recupera por e-mail; enquanto a sessão (7 dias) valer, a pessoa troca o e-mail no Perfil com a senha atual. Além disso, o pedido de redefinição leva um pouco mais de tempo para e-mails com conta (o envio é síncrono), o que dá a um atacante paciente um jeito lento de descobrir contas; o limite por IP e por e-mail reduz isso.
 - **O token é um segredo:** quem o tiver age como a dona da loja por até 7 dias (ou até sair ou trocar a senha). O front o guarda em `sessionStorage`, legível por qualquer script da página.
-- **A loja `veste-bem` original não tem dono:** continua servindo a página pública da fila, mas ninguém a acessa pelo dashboard.
+- **A loja `veste-bem` é só uma demonstração:** sem dona, serve a página pública da fila mas ninguém a acessa pelo dashboard. Ela não existe em banco novo; só `php bin/seed-demo` a cria (em MySQL exige `--forcar`). A migração `0009` a remove de bancos antigos se estiver sem dona e sem entradas.
 - **O dígito verificador só pega erro de digitação:** não prova que o CNPJ é de quem se cadastra (isso depende de consulta à Receita ou de confirmação de e-mail, que não existem).
 - **Qualquer pessoa pode entrar na fila com qualquer telefone:** não há limite de requisições nem confirmação de que o número é de quem o digitou. Isso precisa ser resolvido antes de existirem notificações.
 - **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A política de retenção do histórico ainda não foi definida.

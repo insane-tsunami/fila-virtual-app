@@ -27,6 +27,7 @@ final class MigrationTest extends DatabaseTestCase
             '0006_create_limites_tentativas',
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
+            '0009_remove_estabelecimento_veste_bem_demonstracao',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -36,7 +37,7 @@ final class MigrationTest extends DatabaseTestCase
         $this->migrator()->run();
 
         $this->assertSame([], $this->migrator()->run(), 'a segunda execução não deve fazer nada');
-        $this->assertSame(1, $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->count());
+        $this->assertSame(0, $this->db->table('estabelecimentos')->count(), 'banco novo fica sem loja');
     }
 
     public function testCriaTabelasEColunasPrevistas(): void
@@ -118,7 +119,10 @@ final class MigrationTest extends DatabaseTestCase
 
         $executadas = $this->migrator()->run();
 
-        $this->assertSame(['0008_add_email_confirmado_e_confirmacoes_email'], $executadas);
+        $this->assertSame([
+            '0008_add_email_confirmado_e_confirmacoes_email',
+            '0009_remove_estabelecimento_veste_bem_demonstracao',
+        ], $executadas);
         $conta = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->first();
         $this->assertNull($conta->email_confirmado_em, 'sem anistia: a conta antiga não está confirmada');
 
@@ -136,11 +140,12 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertTrue($schema->hasColumn('estabelecimentos', 'conta_id'));
     }
 
-    public function testLojaDePartidaNaoTemDono(): void
+    public function testBancoNovoFicaSemNenhumaLojaEOSlugVesteBemFicaLivre(): void
     {
         $this->migrate();
 
-        $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('conta_id'));
+        $this->assertSame(0, $this->db->table('estabelecimentos')->count());
+        $this->assertFalse($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->exists());
     }
 
     /** @return array<string, mixed> */
@@ -202,27 +207,18 @@ final class MigrationTest extends DatabaseTestCase
         $this->db->table('estabelecimentos')->insert(['nome' => 'B', 'slug' => 'b', 'conta_id' => $conta]);
     }
 
-    public function testInsereOEstabelecimentoDePartida(): void
-    {
-        $this->migrate();
-
-        $linha = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
-
-        $this->assertNotNull($linha);
-        $this->assertSame('Veste Bem', $linha->nome);
-    }
-
     public function testEnderecoPublicoComecaNuloEAceitaUmaOrigem(): void
     {
         $this->migrate();
+        $this->criarEstabelecimento('loja-a', 'Loja A');
 
-        $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('endereco_publico'));
+        $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'loja-a')->value('endereco_publico'));
 
-        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')
+        $this->db->table('estabelecimentos')->where('slug', 'loja-a')
             ->update(['endereco_publico' => 'https://loja.exemplo.com']);
         $this->assertSame(
             'https://loja.exemplo.com',
-            $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('endereco_publico')
+            $this->db->table('estabelecimentos')->where('slug', 'loja-a')->value('endereco_publico')
         );
     }
 
@@ -234,7 +230,8 @@ final class MigrationTest extends DatabaseTestCase
             copy($arquivo, $dir . '/' . basename($arquivo));
         }
         (new Migrator($this->db, $dir))->run();
-        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')
+        $this->criarEstabelecimento('loja-antiga', 'Loja Antiga');
+        $this->db->table('estabelecimentos')->where('slug', 'loja-antiga')
             ->update(['endereco_publico' => 'https://loja.exemplo.com']);
 
         $executadas = $this->migrator()->run();
@@ -244,8 +241,9 @@ final class MigrationTest extends DatabaseTestCase
             '0006_create_limites_tentativas',
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
+            '0009_remove_estabelecimento_veste_bem_demonstracao',
         ], $executadas);
-        $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
+        $loja = $this->db->table('estabelecimentos')->where('slug', 'loja-antiga')->first();
         $this->assertNull($loja->conta_id);
         $this->assertSame('https://loja.exemplo.com', $loja->endereco_publico);
 
@@ -272,8 +270,13 @@ final class MigrationTest extends DatabaseTestCase
             '0006_create_limites_tentativas',
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
+            '0009_remove_estabelecimento_veste_bem_demonstracao',
         ], $executadas);
-        $this->assertSame(2, $this->db->table('estabelecimentos')->count(), 'as linhas existentes continuam');
+        $this->assertSame(
+            ['outra-loja'],
+            $this->db->table('estabelecimentos')->pluck('slug')->all(),
+            'a demonstração vazia e sem dona sai; as outras lojas continuam'
+        );
         $this->assertNull($this->db->table('estabelecimentos')->where('slug', 'outra-loja')->value('endereco_publico'));
 
         array_map('unlink', glob($dir . '/*.php'));
@@ -283,9 +286,10 @@ final class MigrationTest extends DatabaseTestCase
     public function testSlugDuplicadoERecusadoPeloBanco(): void
     {
         $this->migrate();
+        $this->criarEstabelecimento('loja-a', 'Loja A');
 
         $this->expectException(QueryException::class);
-        $this->db->table('estabelecimentos')->insert(['nome' => 'Outra', 'slug' => 'veste-bem']);
+        $this->db->table('estabelecimentos')->insert(['nome' => 'Outra', 'slug' => 'loja-a']);
     }
 
     public function testCodigoDuplicadoERecusadoPeloBanco(): void
@@ -311,5 +315,122 @@ final class MigrationTest extends DatabaseTestCase
             'estabelecimento_id' => 9999, 'codigo' => 'xyz', 'telefone' => '5511971778203',
             'status' => 'aguardando', 'entrou_em' => '2026-10-03 12:00:00',
         ]);
+    }
+
+    // --- 0009: remove a demonstração sem uso -------------------------------------------------
+
+    /** Migra até a 0008 (a `veste-bem` da 0003 existe, sem dona) e devolve a pasta temporária. */
+    private function migrarAteAOitava(): string
+    {
+        $dir = sys_get_temp_dir() . '/migracoes-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        foreach (glob(__DIR__ . '/../database/migrations/000[12345678]_*.php') as $arquivo) {
+            copy($arquivo, $dir . '/' . basename($arquivo));
+        }
+        (new Migrator($this->db, $dir))->run();
+
+        return $dir;
+    }
+
+    private function limpar(string $dir): void
+    {
+        array_map('unlink', glob($dir . '/*.php'));
+        rmdir($dir);
+    }
+
+    /** Roda a 0009 e devolve o que ela mandou para o log. */
+    private function rodarAZeroNoveCapturandoOLog(): string
+    {
+        $arquivo = (string) tempnam(sys_get_temp_dir(), 'log');
+        $anterior = ini_set('error_log', $arquivo);
+        try {
+            $executadas = $this->migrator()->run();
+        } finally {
+            ini_set('error_log', (string) $anterior);
+        }
+        $this->assertSame(['0009_remove_estabelecimento_veste_bem_demonstracao'], $executadas);
+        $log = (string) file_get_contents($arquivo);
+        unlink($arquivo);
+
+        return $log;
+    }
+
+    public function testZeroNoveRemoveADemonstracaoSemDonaESemEntradas(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $this->assertTrue($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->exists());
+
+        $log = $this->rodarAZeroNoveCapturandoOLog();
+
+        $this->assertFalse($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->exists());
+        $this->assertSame('', $log, 'removeu em silêncio');
+        $this->limpar($dir);
+    }
+
+    public function testZeroNovePreservaADemonstracaoComEntradasEAvisa(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $loja = (int) $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->value('id');
+        $this->db->table('entradas_fila')->insert([
+            'estabelecimento_id' => $loja, 'codigo' => 'abc', 'telefone' => '5511971778203',
+            'status' => 'aguardando', 'entrou_em' => '2026-10-03 12:00:00',
+        ]);
+
+        $log = $this->rodarAZeroNoveCapturandoOLog();
+
+        $this->assertTrue($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->exists());
+        $this->assertSame(1, $this->db->table('entradas_fila')->count());
+        $this->assertStringContainsString('veste-bem', $log);
+        $this->assertStringContainsString('mantida', $log);
+        $this->limpar($dir);
+    }
+
+    public function testZeroNovePreservaADemonstracaoQueTemDonaEmSilencio(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $conta = $this->db->table('contas')->insertGetId($this->conta());
+        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->update(['conta_id' => $conta]);
+
+        $log = $this->rodarAZeroNoveCapturandoOLog();
+
+        $loja = $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->first();
+        $this->assertNotNull($loja);
+        $this->assertSame($conta, (int) $loja->conta_id);
+        $this->assertSame('', $log);
+        $this->limpar($dir);
+    }
+
+    public function testZeroNoveNaoMexeNasOutrasLojas(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $conta = $this->db->table('contas')->insertGetId($this->conta());
+        $this->db->table('estabelecimentos')->insert(['nome' => 'Com Dona', 'slug' => 'com-dona', 'conta_id' => $conta]);
+        $semDona = $this->criarEstabelecimento('sem-dona', 'Sem Dona');
+        $this->db->table('entradas_fila')->insert([
+            'estabelecimento_id' => $semDona, 'codigo' => 'def', 'telefone' => '5511971778203',
+            'status' => 'aguardando', 'entrou_em' => '2026-10-03 12:00:00',
+        ]);
+
+        $this->rodarAZeroNoveCapturandoOLog();
+
+        $this->assertEqualsCanonicalizing(
+            ['com-dona', 'sem-dona'],
+            $this->db->table('estabelecimentos')->pluck('slug')->all()
+        );
+        $this->assertSame(1, $this->db->table('entradas_fila')->count());
+        $this->limpar($dir);
+    }
+
+    public function testZeroNoveSemADemonstracaoNaoFazNada(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $this->db->table('estabelecimentos')->where('slug', 'veste-bem')->delete();
+        $this->criarEstabelecimento('loja-a', 'Loja A');
+
+        $log = $this->rodarAZeroNoveCapturandoOLog();
+
+        $this->assertSame(['loja-a'], $this->db->table('estabelecimentos')->pluck('slug')->all());
+        $this->assertSame('', $log);
+        $this->limpar($dir);
     }
 }
