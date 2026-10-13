@@ -29,10 +29,11 @@ A configuração vem de **variáveis de ambiente** (o PHP não lê o `.env` sozi
 | `MAIL_DSN` | Servidor SMTP do driver `smtp`, no formato do Symfony Mailer, ex.: `smtp://usuario:senha@smtp.exemplo.com:587`. É um segredo: nunca commite | vazia |
 | `MAIL_FROM` | Remetente dos e-mails do driver `smtp`, ex.: `ZeraFilas <nao-responda@exemplo.com>` | vazia |
 | `TRUSTED_PROXIES` | IPs ou faixas CIDR de proxies confiáveis, separados por vírgula (ex.: `10.0.0.1,172.16.0.0/12`). Só atrás deles a API lê o `X-Forwarded-For` para descobrir o IP do cliente (ver [Limite de tentativas](#limite-de-tentativas)) | vazia |
-| `RATE_LIMIT_LOGIN_EMAIL` | Erros de login por e-mail que bloqueiam o e-mail na janela | `5` |
+| `RATE_LIMIT_LOGIN_EMAIL_IP` | Erros de login de um e-mail vindos do mesmo IP que bloqueiam o e-mail só naquele IP | `5` |
+| `RATE_LIMIT_LOGIN_EMAIL` | Teto: erros de login de um e-mail somando todos os IPs que bloqueiam o e-mail em qualquer IP. Até esta versão era o único limite por e-mail, com padrão `5`; quem fixou `5` mantém o bloqueio antigo, em que qualquer um tranca a dona fora do painel | `50` |
 | `RATE_LIMIT_LOGIN_IP` | Erros de login por IP que bloqueiam o IP na janela | `20` |
 | `RATE_LIMIT_SENHA_CONTA` | Senhas atuais erradas na troca de senha que bloqueiam a conta na janela | `5` |
-| `RATE_LIMIT_JANELA_MIN` | Janela, em minutos, dos três limites acima | `15` |
+| `RATE_LIMIT_JANELA_MIN` | Janela, em minutos, dos quatro limites acima | `15` |
 | `RATE_LIMIT_CADASTRO_IP` | Tentativas de cadastro por IP na janela do cadastro | `5` |
 | `RATE_LIMIT_CADASTRO_JANELA_MIN` | Janela, em minutos, do limite de cadastro | `60` |
 | `RATE_LIMIT_ESQUECI_EMAIL` | Pedidos de redefinição de senha por e-mail na janela do "esqueci a senha" | `3` |
@@ -209,7 +210,8 @@ Oito rotas públicas ou de conta têm limite, para dificultar a adivinhação de
 
 | Rota | Quem é limitado | Padrão | O que conta |
 |---|---|---|---|
-| `POST /api/sessoes` (login) | cada e-mail | 5 em 15 min | só os erros (senha errada ou e-mail sem conta) |
+| `POST /api/sessoes` (login) | cada e-mail, em cada IP | 5 em 15 min | só os erros (senha errada ou e-mail sem conta); bloqueia o e-mail só naquele IP |
+| `POST /api/sessoes` (login) | cada e-mail, somando todos os IPs | 50 em 15 min | só os erros; bloqueia o e-mail em qualquer IP |
 | `POST /api/sessoes` (login) | cada IP | 20 em 15 min | só os erros |
 | `POST /api/contas` (cadastro) | cada IP | 5 em 60 min | toda chamada, inclusive as recusadas (`409`, `422`) |
 | `PUT /api/conta/senha` (trocar a senha) | cada conta | 5 em 15 min | só as senhas atuais erradas |
@@ -220,9 +222,12 @@ Oito rotas públicas ou de conta têm limite, para dificultar a adivinhação de
 | `PUT /api/conta/email` (senha atual errada) | cada conta | 5 em 15 min | só as senhas erradas, no mesmo limite da troca de senha |
 | `POST /api/email/confirmar` | cada IP | 20 em 15 min | só os tokens inválidos |
 
-- Esgotado o limite, a rota responde **`429`** com `{"erro": "Muitas tentativas. Tente de novo em N minutos."}` e o cabeçalho `Retry-After` (segundos), **sem verificar a senha**, mesmo que ela esteja certa. O bloqueio vale até a janela vencer.
-- Um login correto zera o contador do e-mail; uma troca de senha bem-sucedida zera o da conta. Dados incompletos (`422`) no login não contam.
-- E-mail sem conta conta como erro, então o `429` não revela quais e-mails existem. Em compensação, quem erra 5 vezes o e-mail de outra pessoa o bloqueia por até 15 minutos.
+- Esgotado o limite, a rota responde **`429`** com `{"erro": "Muitas tentativas. Tente de novo em N minutos."}` e o cabeçalho `Retry-After` (segundos), **sem verificar a senha**, mesmo que ela esteja certa. O bloqueio vale até a janela vencer; com mais de um limite esgotado, o `Retry-After` é o maior tempo entre eles.
+- **Quem erra a senha de outra pessoa não a tranca fora do painel.** Os 5 erros bloqueiam aquele e-mail só no IP de onde vieram; a dona continua entrando de qualquer outro IP. O teto de 50 erros somando todos os IPs só é atingido por um ataque espalhado por muitos IPs, e aí o e-mail fica bloqueado em qualquer IP até a janela vencer.
+- Um login correto zera o contador daquele e-mail naquele IP, mas não o teto do e-mail (zerá-lo devolveria tentativas a um ataque espalhado a cada login da dona) nem o do IP. Uma troca de senha bem-sucedida zera o contador da conta. Dados incompletos (`422`) no login não contam.
+- E-mail sem conta conta como erro nos dois limites por e-mail, então o `429` não revela quais e-mails existem.
+- **O que se troca:** contra um único IP, a senha resiste como antes (5 tentativas por e-mail a cada 15 minutos); contra um ataque espalhado por muitos IPs, passa a aguentar 50 a cada 15 minutos. Use uma senha forte; quem preferir o contrário pode baixar `RATE_LIMIT_LOGIN_EMAIL`, sabendo que um valor baixo devolve a qualquer um o poder de trancar a dona fora.
+- **Mesmo IP que o atacante** (Wi-Fi compartilhado, IP da operadora de celular): a dona cai no mesmo bloqueio do par e-mail+IP. Trocar de rede (Wi-Fi ↔ dados móveis) resolve.
 - O **IP** é o da conexão. Só se ele estiver em `TRUSTED_PROXIES` a API usa o `X-Forwarded-For` (o IP mais à direita que não seja de proxy confiável); endereços IPv6 contam pelo bloco /64.
 - Se o banco dos contadores falhar, a chamada **segue sem limite** e o erro vai para o log (o limite é uma defesa extra e não pode derrubar o login).
 
@@ -255,7 +260,7 @@ server/
 
 A hospedagem ainda não foi definida. O código não depende de nenhum provedor: serve qualquer hospedagem com PHP 8.3+ e MySQL, apontando a raiz do site para `public/`, definindo as variáveis de ambiente e rodando `php bin/migrate` a cada deploy. Em Apache, o `public/.htaccess` já direciona tudo ao front controller.
 
-**Atrás de proxy ou CDN, configure `TRUSTED_PROXIES`.** Sem isso a API usa o endereço da conexão, que atrás de um proxy é o do próprio proxy: todos os usuários parecem o mesmo IP e o limite de tentativas por IP passa a valer para o site inteiro. Liste só os proxies que você controla: um endereço na lista é confiado para dizer quem é o cliente. Sem proxy, deixe vazia.
+**Atrás de proxy ou CDN, configure `TRUSTED_PROXIES`.** Sem isso a API usa o endereço da conexão, que atrás de um proxy é o do próprio proxy: todos os usuários parecem o mesmo IP, o limite de tentativas por IP passa a valer para o site inteiro e o limite de login por e-mail+IP vira um limite por e-mail de 5 erros, com que qualquer um volta a trancar a dona fora do painel. Liste só os proxies que você controla: um endereço na lista é confiado para dizer quem é o cliente. Sem proxy, deixe vazia.
 
 ## Segurança e pendências
 

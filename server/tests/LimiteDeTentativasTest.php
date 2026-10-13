@@ -139,6 +139,60 @@ final class LimiteDeTentativasTest extends DatabaseTestCase
         $this->assertCount(4, $this->logados);
     }
 
+    /** @return list<array{string, string}> */
+    private function pares(): array
+    {
+        return [[self::ESCOPO, 'k'], [LimiteDeTentativas::CADASTRO_IP, 'ip']];
+    }
+
+    public function testVerificarTodosNaoLancaSemParEsgotado(): void
+    {
+        $this->erros(2);
+        $this->limite->consumir(LimiteDeTentativas::CADASTRO_IP, 'ip');
+
+        $this->limite->verificarTodos($this->pares());
+        $this->assertSame([], $this->logados);
+    }
+
+    public function testVerificarTodosLancaComUmParEsgotado(): void
+    {
+        $this->erros(3);
+
+        try {
+            $this->limite->verificarTodos($this->pares());
+            $this->fail('devia bloquear');
+        } catch (LimiteExcedidoException $e) {
+            $this->assertGreaterThan(890, $e->segundos);
+            $this->assertLessThanOrEqual(900, $e->segundos);
+        }
+    }
+
+    public function testVerificarTodosUsaOMaiorTempoEntreOsEsgotados(): void
+    {
+        $this->erros(3);
+        $this->limite->consumir(LimiteDeTentativas::CADASTRO_IP, 'ip');
+        $this->limite->consumir(LimiteDeTentativas::CADASTRO_IP, 'ip');
+
+        foreach ([$this->pares(), array_reverse($this->pares())] as $pares) {
+            try {
+                $this->limite->verificarTodos($pares);
+                $this->fail('devia bloquear');
+            } catch (LimiteExcedidoException $e) {
+                $this->assertGreaterThan(3590, $e->segundos, 'vale a janela de 1 hora, não a de 15 minutos');
+                $this->assertLessThanOrEqual(3600, $e->segundos);
+            }
+        }
+    }
+
+    public function testVerificarTodosComFalhaDoBancoNaoLancaEVaiParaOLog(): void
+    {
+        $this->db->schema()->drop('limites_tentativas');
+
+        $this->limite->verificarTodos($this->pares());
+
+        $this->assertCount(1, $this->logados);
+    }
+
     public function testDaConfigConvertePadroesEMinutosEmSegundos(): void
     {
         $config = (require __DIR__ . '/../api/config.php')['rate_limit'];
@@ -152,6 +206,32 @@ final class LimiteDeTentativasTest extends DatabaseTestCase
             $this->fail('o 6º cadastro devia bloquear');
         } catch (LimiteExcedidoException $e) {
             $this->assertGreaterThan(3500, $e->segundos);
+        }
+        $this->assertSame([], $this->logados);
+    }
+
+    public function testDaConfigUsaOsPadroesDoLoginPorEmailEIpEDoTetoPorEmail(): void
+    {
+        $config = (require __DIR__ . '/../api/config.php')['rate_limit'];
+        $limite = LimiteDeTentativas::daConfig($config, fn (Throwable $e) => $this->logados[] = $e);
+
+        for ($i = 0; $i < 5; $i++) {
+            $limite->verificar(LimiteDeTentativas::LOGIN_EMAIL_IP, 'par');
+            $limite->registrar(LimiteDeTentativas::LOGIN_EMAIL_IP, 'par');
+        }
+        for ($i = 0; $i < 50; $i++) {
+            $limite->verificar(LimiteDeTentativas::LOGIN_EMAIL, 'email');
+            $limite->registrar(LimiteDeTentativas::LOGIN_EMAIL, 'email');
+        }
+
+        foreach ([LimiteDeTentativas::LOGIN_EMAIL_IP => 'par', LimiteDeTentativas::LOGIN_EMAIL => 'email'] as $escopo => $chave) {
+            try {
+                $limite->verificar($escopo, $chave);
+                $this->fail("o erro seguinte ao limite devia bloquear ($escopo)");
+            } catch (LimiteExcedidoException $e) {
+                $this->assertGreaterThan(800, $e->segundos, 'janela de 15 minutos');
+                $this->assertLessThanOrEqual(900, $e->segundos);
+            }
         }
         $this->assertSame([], $this->logados);
     }

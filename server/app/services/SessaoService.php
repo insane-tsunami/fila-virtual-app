@@ -33,15 +33,19 @@ final class SessaoService
         }
 
         $normalizado = Email::normalizar($email);
+        $contadores = [[LimiteDeTentativas::LOGIN_IP, LimiteDeTentativas::chave($ip)]];
         // E-mail com formato inválido não tem chave estável: conta só contra o IP.
-        $chaveEmail = $normalizado === null ? null : LimiteDeTentativas::chave($normalizado);
-        $chaveIp = LimiteDeTentativas::chave($ip);
+        $chavePar = null;
+        if ($normalizado !== null) {
+            // O par e-mail+IP barra quem erra de um IP sem trancar a dona fora dos outros; o teto
+            // por e-mail (somando todos os IPs) só freia o ataque espalhado por muitos IPs.
+            $chavePar = LimiteDeTentativas::chave($normalizado . '|' . $ip);
+            $contadores[] = [LimiteDeTentativas::LOGIN_EMAIL_IP, $chavePar];
+            $contadores[] = [LimiteDeTentativas::LOGIN_EMAIL, LimiteDeTentativas::chave($normalizado)];
+        }
 
         // Bloqueado: responde 429 antes de gastar um bcrypt, mesmo com a senha certa.
-        $this->limite?->verificar(LimiteDeTentativas::LOGIN_IP, $chaveIp);
-        if ($chaveEmail !== null) {
-            $this->limite?->verificar(LimiteDeTentativas::LOGIN_EMAIL, $chaveEmail);
-        }
+        $this->limite?->verificarTodos($contadores);
 
         $conta = $normalizado === null ? null : Conta::query()->where('email', $normalizado)->first();
 
@@ -49,16 +53,16 @@ final class SessaoService
         // mensagem não revelam se o e-mail está cadastrado.
         if (!Senha::confere($senha, $conta?->senha_hash) || $conta === null) {
             // E-mail desconhecido também conta: o 429 não pode revelar quais e-mails têm conta.
-            $this->limite?->registrar(LimiteDeTentativas::LOGIN_IP, $chaveIp);
-            if ($chaveEmail !== null) {
-                $this->limite?->registrar(LimiteDeTentativas::LOGIN_EMAIL, $chaveEmail);
+            foreach ($contadores as [$escopo, $chave]) {
+                $this->limite?->registrar($escopo, $chave);
             }
 
             throw new NaoAutenticadoException('E-mail ou senha incorretos.');
         }
 
-        if ($chaveEmail !== null) {
-            $this->limite?->zerar(LimiteDeTentativas::LOGIN_EMAIL, $chaveEmail);
+        // Só o par: zerar o teto devolveria tentativas a um ataque espalhado a cada login da dona.
+        if ($chavePar !== null) {
+            $this->limite?->zerar(LimiteDeTentativas::LOGIN_EMAIL_IP, $chavePar);
         }
 
         Sessao::query()->where('expira_em', '<', gmdate('Y-m-d H:i:s'))->delete();
