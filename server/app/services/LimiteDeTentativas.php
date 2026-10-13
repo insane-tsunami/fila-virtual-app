@@ -15,6 +15,7 @@ use Throwable;
  */
 final class LimiteDeTentativas
 {
+    public const LOGIN_EMAIL_IP = 'login_email_ip';
     public const LOGIN_EMAIL = 'login_email';
     public const LOGIN_IP = 'login_ip';
     public const CADASTRO_IP = 'cadastro_ip';
@@ -50,6 +51,7 @@ final class LimiteDeTentativas
         $janela = $config['janela_minutos'] * 60;
 
         return new self([
+            self::LOGIN_EMAIL_IP => ['max' => $config['login_email_ip'], 'janela' => $janela],
             self::LOGIN_EMAIL => ['max' => $config['login_email'], 'janela' => $janela],
             self::LOGIN_IP => ['max' => $config['login_ip'], 'janela' => $janela],
             self::SENHA_CONTA => ['max' => $config['senha_conta'], 'janela' => $janela],
@@ -74,14 +76,34 @@ final class LimiteDeTentativas
     /** Lança se a chave já esgotou o limite. Não altera nada. */
     public function verificar(string $escopo, string $chave): void
     {
-        $this->seguro(function () use ($escopo, $chave): void {
-            $linha = Capsule::table('limites_tentativas')
-                ->where('escopo', $escopo)->where('chave', $chave)
-                ->where('expira_em', '>', gmdate('Y-m-d H:i:s'))
-                ->first();
+        $this->verificarTodos([[$escopo, $chave]]);
+    }
 
-            if ($linha !== null && (int) $linha->contagem >= $this->limite($escopo)['max']) {
-                throw new LimiteExcedidoException($this->segundosAte($linha->expira_em));
+    /**
+     * Lança se algum dos pares já esgotou o limite, com o maior tempo de espera entre os esgotados:
+     * o Retry-After não pode anunciar uma liberação que outro contador ainda impede. Não altera nada.
+     *
+     * @param list<array{string, string}> $pares (escopo, chave)
+     */
+    public function verificarTodos(array $pares): void
+    {
+        $this->seguro(function () use ($pares): void {
+            $agora = gmdate('Y-m-d H:i:s');
+            $segundos = 0;
+
+            foreach ($pares as [$escopo, $chave]) {
+                $linha = Capsule::table('limites_tentativas')
+                    ->where('escopo', $escopo)->where('chave', $chave)
+                    ->where('expira_em', '>', $agora)
+                    ->first();
+
+                if ($linha !== null && (int) $linha->contagem >= $this->limite($escopo)['max']) {
+                    $segundos = max($segundos, $this->segundosAte($linha->expira_em));
+                }
+            }
+
+            if ($segundos > 0) {
+                throw new LimiteExcedidoException($segundos);
             }
         });
     }

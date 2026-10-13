@@ -133,10 +133,11 @@ final class SessaoServiceTest extends DatabaseTestCase
         $this->assertNotNull($this->sessoes->resolver($nova['token']));
     }
 
-    public function testComLimiteOQuintoErroBloqueiaESenhaCertaNaoEntra(): void
+    private function sessoesComLimite(): SessaoService
     {
         $sessoes = new SessaoService(new LimiteDeTentativas([
-            LimiteDeTentativas::LOGIN_EMAIL => ['max' => 2, 'janela' => 900],
+            LimiteDeTentativas::LOGIN_EMAIL_IP => ['max' => 2, 'janela' => 900],
+            LimiteDeTentativas::LOGIN_EMAIL => ['max' => 10, 'janela' => 900],
             LimiteDeTentativas::LOGIN_IP => ['max' => 10, 'janela' => 900],
         ]));
         for ($i = 0; $i < 2; $i++) {
@@ -146,7 +147,21 @@ final class SessaoServiceTest extends DatabaseTestCase
             }
         }
 
+        return $sessoes;
+    }
+
+    public function testComLimiteOsErrosNoParBloqueiamESenhaCertaNaoEntra(): void
+    {
+        $sessoes = $this->sessoesComLimite();
+
         $this->expectException(LimiteExcedidoException::class);
         $sessoes->entrar('contato@vestebem.com', 'senha-segura-1', '198.51.100.7');
+    }
+
+    public function testComLimiteOBloqueioDoParNaoAfetaOutroIp(): void
+    {
+        $sessoes = $this->sessoesComLimite();
+
+        $this->assertArrayHasKey('token', $sessoes->entrar('contato@vestebem.com', 'senha-segura-1', '203.0.113.50'));
     }
 }

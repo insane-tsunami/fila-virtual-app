@@ -32,7 +32,8 @@ context: |
   REACT_APP_API_URL): cadastro, login, dashboard (fila real, atualização a cada
   5 s), QR code, Perfil (trocar a senha) e a página do cliente. As rotas do
   dashboard ficam atrás do login (src/sessao); o token fica em sessionStorage.
-  Limite de tentativas (spec rate-limiting): login (por e-mail e por IP), cadastro
+  Limite de tentativas (spec rate-limiting): login (por e-mail+IP, teto por e-mail
+  somando IPs e por IP; o acerto zera só o par), cadastro
   (por IP) e troca de senha (por conta) respondem 429 com Retry-After; contadores
   na tabela limites_tentativas; IP pelo REMOTE_ADDR, X-Forwarded-For só atrás de
   TRUSTED_PROXIES; limites em RATE_LIMIT_*.

@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 final class ConfigTest extends TestCase
 {
     private const VARIAVEIS = ['DB_DRIVER', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'API_KEY', 'CORS_ORIGIN',
-        'RATE_LIMIT_LOGIN_EMAIL', 'RATE_LIMIT_LOGIN_IP', 'RATE_LIMIT_SENHA_CONTA', 'RATE_LIMIT_JANELA_MIN',
+        'RATE_LIMIT_LOGIN_EMAIL_IP', 'RATE_LIMIT_LOGIN_EMAIL', 'RATE_LIMIT_LOGIN_IP', 'RATE_LIMIT_SENHA_CONTA', 'RATE_LIMIT_JANELA_MIN',
         'RATE_LIMIT_CADASTRO_IP', 'RATE_LIMIT_CADASTRO_JANELA_MIN', 'TRUSTED_PROXIES',
         'APP_URL', 'MAIL_DRIVER', 'MAIL_DSN', 'MAIL_FROM',
         'RATE_LIMIT_ESQUECI_EMAIL', 'RATE_LIMIT_ESQUECI_IP', 'RATE_LIMIT_ESQUECI_JANELA_MIN', 'RATE_LIMIT_REDEFINIR_IP',
@@ -84,7 +84,7 @@ final class ConfigTest extends TestCase
         $config = $this->carregar();
 
         $this->assertSame([
-            'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
+            'login_email_ip' => 5, 'login_email' => 50, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
             'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
             'esqueci_email' => 3, 'esqueci_ip' => 10, 'esqueci_janela_minutos' => 60, 'redefinir_ip' => 20,
             'confirmacao_conta' => 3, 'confirmacao_janela_minutos' => 60, 'confirmar_ip' => 20,
@@ -94,6 +94,7 @@ final class ConfigTest extends TestCase
 
     public function testLimitesDeTentativasLemOAmbiente(): void
     {
+        putenv('RATE_LIMIT_LOGIN_EMAIL_IP=2');
         putenv('RATE_LIMIT_LOGIN_EMAIL=3');
         putenv('RATE_LIMIT_CADASTRO_JANELA_MIN=30');
         putenv('RATE_LIMIT_ESQUECI_EMAIL=1');
@@ -104,6 +105,7 @@ final class ConfigTest extends TestCase
 
         $config = $this->carregar();
 
+        $this->assertSame(2, $config['rate_limit']['login_email_ip']);
         $this->assertSame(3, $config['rate_limit']['login_email']);
         $this->assertSame(30, $config['rate_limit']['cadastro_janela_minutos']);
         $this->assertSame(20, $config['rate_limit']['login_ip']);
@@ -125,6 +127,7 @@ final class ConfigTest extends TestCase
     #[DataProvider('valoresInvalidos')]
     public function testLimiteInvalidoUsaOPadrao(string $valor): void
     {
+        putenv('RATE_LIMIT_LOGIN_EMAIL_IP=' . $valor);
         putenv('RATE_LIMIT_LOGIN_EMAIL=' . $valor);
         putenv('RATE_LIMIT_JANELA_MIN=' . $valor);
         putenv('RATE_LIMIT_ESQUECI_EMAIL=' . $valor);
@@ -136,7 +139,8 @@ final class ConfigTest extends TestCase
 
         $config = $this->carregar();
 
-        $this->assertSame(5, $config['rate_limit']['login_email']);
+        $this->assertSame(5, $config['rate_limit']['login_email_ip']);
+        $this->assertSame(50, $config['rate_limit']['login_email']);
         $this->assertSame(15, $config['rate_limit']['janela_minutos']);
         $this->assertSame(3, $config['rate_limit']['esqueci_email']);
         $this->assertSame(60, $config['rate_limit']['esqueci_janela_minutos']);

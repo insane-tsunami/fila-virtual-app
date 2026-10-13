@@ -28,9 +28,11 @@ return [
     ],
     // Origem única permitida para CORS. Vazia = sem cabeçalhos CORS.
     'cors_origin' => $env('CORS_ORIGIN'),
-    // Limite de tentativas: erros por e-mail/IP/conta na janela (minutos), cadastros por IP e o "esqueci a senha".
+    // Limite de tentativas: erros de login por e-mail no mesmo IP, por e-mail de qualquer IP (teto) e por IP,
+    // erros de senha por conta na janela (minutos), cadastros por IP e o "esqueci a senha".
     'rate_limit' => [
-        'login_email' => $inteiro('RATE_LIMIT_LOGIN_EMAIL', 5),
+        'login_email_ip' => $inteiro('RATE_LIMIT_LOGIN_EMAIL_IP', 5),
+        'login_email' => $inteiro('RATE_LIMIT_LOGIN_EMAIL', 50),
         'login_ip' => $inteiro('RATE_LIMIT_LOGIN_IP', 20),
         'senha_conta' => $inteiro('RATE_LIMIT_SENHA_CONTA', 5),
         'janela_minutos' => $inteiro('RATE_LIMIT_JANELA_MIN', 15),

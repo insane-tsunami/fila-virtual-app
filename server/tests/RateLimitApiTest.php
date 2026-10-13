@@ -14,7 +14,7 @@ final class RateLimitApiTest extends ApiTestCase
 
     /** @var array<string, int> */
     private array $limites = [
-        'login_email' => 5, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
+        'login_email_ip' => 5, 'login_email' => 50, 'login_ip' => 20, 'senha_conta' => 5, 'janela_minutos' => 15,
         'cadastro_ip' => 5, 'cadastro_janela_minutos' => 60,
         'esqueci_email' => 3, 'esqueci_ip' => 10, 'esqueci_janela_minutos' => 60, 'redefinir_ip' => 20,
         'confirmacao_conta' => 3, 'confirmacao_janela_minutos' => 60, 'confirmar_ip' => 20,
@@ -161,15 +161,114 @@ final class RateLimitApiTest extends ApiTestCase
         $this->assertSame(200, $this->login(self::EMAIL, self::SENHA)->getStatusCode());
     }
 
-    public function testBloqueioPorEmailVaiComOEmailMesmoTrocandoDeIp(): void
+    public function testDonaEntraDeOutroIpComOEmailBloqueadoNoIpDoAtacante(): void
     {
         $this->conta();
         for ($i = 0; $i < 5; $i++) {
             $this->erroNoLogin();
         }
+        $this->assertSame(429, $this->login(self::EMAIL, self::SENHA)->getStatusCode(), 'bloqueado no IP do atacante');
+
         $this->enderecoRemoto = '203.0.113.50';
 
+        $this->assertSame(200, $this->login(self::EMAIL, self::SENHA)->getStatusCode());
+    }
+
+    public function testOutroEmailNoMesmoIpEntra(): void
+    {
+        $this->conta();
+        for ($i = 0; $i < 5; $i++) {
+            $this->erroNoLogin('ninguem@exemplo.com');
+        }
+        $this->assertSame(429, $this->erroNoLogin('ninguem@exemplo.com'));
+
+        $this->assertSame(200, $this->login(self::EMAIL, self::SENHA)->getStatusCode());
+    }
+
+    /**
+     * Erros de login espalhados por IPs diferentes, menos que o limite do par em cada um.
+     *
+     * @param list<int> $porIp erros em cada IP (203.0.113.1, .2, ...)
+     */
+    private function errosEspalhados(array $porIp, string $email = self::EMAIL): void
+    {
+        foreach ($porIp as $i => $quantos) {
+            $this->enderecoRemoto = '203.0.113.' . ($i + 1);
+            for ($n = 0; $n < $quantos; $n++) {
+                $this->assertSame(401, $this->erroNoLogin($email));
+            }
+        }
+    }
+
+    public function testTetoDoEmailSomandoIpsBloqueiaDeUmIpNovo(): void
+    {
+        $this->conta();
+        $this->limites['login_email'] = 10;
+        $this->errosEspalhados([4, 4, 2]);
+
+        $this->enderecoRemoto = '192.0.2.200';
+        $resposta = $this->login(self::EMAIL, self::SENHA);
+
+        $this->assertSame(429, $resposta->getStatusCode());
+        $this->assertSame(0, $this->db->table('sessoes')->count(), 'nenhuma sessão aberta');
+    }
+
+    public function testLoginCorretoNaoZeraOTetoDoEmail(): void
+    {
+        $this->conta();
+        $this->limites['login_email'] = 10;
+        $this->errosEspalhados([4, 4, 1]);
+
+        $this->enderecoRemoto = '192.0.2.10';
+        $this->assertSame(200, $this->login(self::EMAIL, self::SENHA)->getStatusCode(), 'a dona entra abaixo do teto');
+        $this->enderecoRemoto = '192.0.2.11';
+        $this->assertSame(401, $this->erroNoLogin(), 'décimo erro');
+
+        $this->enderecoRemoto = '192.0.2.12';
         $this->assertSame(429, $this->login(self::EMAIL, self::SENHA)->getStatusCode());
+    }
+
+    public function testTetoSomandoIpsBloqueiaEmailDesconhecidoNoMesmoPonto(): void
+    {
+        $this->conta();
+        $this->limites['login_email'] = 6;
+        foreach ([4, 2] as $i => $quantos) {
+            $this->enderecoRemoto = '203.0.113.' . ($i + 1);
+            for ($n = 0; $n < $quantos; $n++) {
+                $this->assertSame(401, $this->erroNoLogin(self::EMAIL));
+                $this->assertSame(401, $this->erroNoLogin('ninguem@exemplo.com'));
+            }
+        }
+
+        $this->enderecoRemoto = '192.0.2.200';
+        $a = $this->login(self::EMAIL, 'x');
+        $b = $this->login('ninguem@exemplo.com', 'x');
+
+        $this->assertSame(429, $a->getStatusCode());
+        $this->assertSame(429, $b->getStatusCode());
+        $this->assertSame($this->json($a), $this->json($b));
+    }
+
+    public function testRetryAfterUsaOMaiorTempoEntreOParEOTeto(): void
+    {
+        $this->conta();
+        $this->limites['login_email'] = 5;
+        for ($i = 0; $i < 5; $i++) {
+            $this->erroNoLogin();
+        }
+        $expira = fn (string $escopo, int $segundos) => $this->db->table('limites_tentativas')
+            ->where('escopo', $escopo)->update(['expira_em' => gmdate('Y-m-d H:i:s', time() + $segundos)]);
+
+        foreach ([['login_email_ip', 'login_email'], ['login_email', 'login_email_ip']] as [$curto, $longo]) {
+            $expira($curto, 100);
+            $expira($longo, 800);
+
+            $resposta = $this->login(self::EMAIL, self::SENHA);
+
+            $this->assertSame(429, $resposta->getStatusCode());
+            $this->assertGreaterThan(790, (int) $resposta->getHeaderLine('Retry-After'), "vale o $longo");
+            $this->assertLessThanOrEqual(800, (int) $resposta->getHeaderLine('Retry-After'));
+        }
     }
 
     public function testDadosFaltandoNaoContam(): void
@@ -216,6 +315,10 @@ final class RateLimitApiTest extends ApiTestCase
         $texto = json_encode($this->db->table('limites_tentativas')->get()->all(), JSON_THROW_ON_ERROR);
 
         $this->assertNotSame('[]', $texto);
+        $this->assertSame(
+            ['login_email', 'login_email_ip', 'login_ip'],
+            $this->db->table('limites_tentativas')->orderBy('escopo')->pluck('escopo')->all()
+        );
         $this->assertStringNotContainsString('segredo', strtolower($texto));
         $this->assertStringNotContainsString('198.51.100.7', $texto);
     }
@@ -376,7 +479,7 @@ final class RateLimitApiTest extends ApiTestCase
     public function testLimiteConfiguradoValeNoTerceiroErro(): void
     {
         $this->conta();
-        $this->limites['login_email'] = 3;
+        $this->limites['login_email_ip'] = 3;
 
         $this->assertSame([401, 401, 401, 429], [
             $this->erroNoLogin(), $this->erroNoLogin(), $this->erroNoLogin(), $this->erroNoLogin(),
