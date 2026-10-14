@@ -22,7 +22,7 @@ A página de cadastro SHALL oferecer um botão "Faça o Login aqui" que leva a `
 - **THEN** a aplicação navega para `/login`
 
 ### Requirement: Criar a conta
-Ao acionar "Cadastrar", a página SHALL conferir se "Escolha uma Senha" e "Confirme a senha" são iguais e, se forem, enviar o cadastro à API. Se as senhas forem diferentes, SHALL mostrar "As senhas não são iguais." sem fazer nenhuma requisição. Se a API aceitar, a página SHALL deixar a pessoa já logada e levá-la a `/dashboard`. Se a API recusar (`409` ou `422`), SHALL mostrar a mensagem recebida e manter o que foi digitado, exceto as senhas. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos.
+Ao acionar "Cadastrar", a página SHALL conferir se "Escolha uma Senha" e "Confirme a senha" são iguais e, se forem, enviar o cadastro à API. Se as senhas forem diferentes, SHALL mostrar "As senhas não são iguais." sem fazer nenhuma requisição. Se a API aceitar, a página SHALL deixar a pessoa já logada e levá-la a `/dashboard`.
 
 #### Scenario: Cadastro bem-sucedido
 - **WHEN** o visitante preenche os cinco campos com dados válidos e aciona "Cadastrar"
@@ -31,6 +31,9 @@ Ao acionar "Cadastrar", a página SHALL conferir se "Escolha uma Senha" e "Confi
 #### Scenario: Senhas diferentes
 - **WHEN** as duas senhas não são iguais
 - **THEN** a página mostra "As senhas não são iguais." e nenhuma requisição é feita
+
+### Requirement: Cadastro recusado ou sem resposta
+Se a API recusar o cadastro (`409` ou `422`), a página SHALL mostrar a mensagem recebida e manter o que foi digitado, exceto as senhas. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos.
 
 #### Scenario: E-mail ou CNPJ já cadastrado
 - **WHEN** a API recusa o cadastro com `409`

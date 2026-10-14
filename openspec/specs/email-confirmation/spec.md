@@ -92,11 +92,18 @@ O e-mail SHALL conter o link `<APP_URL>/confirmar-email#token=<token>`, com o to
 - **THEN** a resposta é `401`
 
 ### Requirement: Trocar o e-mail enquanto não confirmado
-`PUT /api/conta/email`, com o corpo `{"email", "senha"}`, SHALL trocar o e-mail de uma conta **não confirmada** quando a senha atual confere e o novo e-mail é válido e livre, invalidar a confirmação anterior, enviar a nova confirmação ao novo endereço e responder `200` com a conta (`email`, `cnpj`, `email_confirmado` falso). A senha errada SHALL ser recusada com `422`, o e-mail de outra conta com `409`, o mesmo e-mail da conta com `422`, e a conta já confirmada com `409`. Sem sessão válida, SHALL responder `401`.
+`PUT /api/conta/email`, com o corpo `{"email", "senha"}`, SHALL trocar o e-mail de uma conta **não confirmada** quando a senha atual confere e o novo e-mail é válido e livre, invalidar a confirmação anterior, enviar a nova confirmação ao novo endereço e responder `200` com a conta (`email`, `cnpj`, `email_confirmado` falso). Sem sessão válida, SHALL responder `401`.
 
 #### Scenario: Corrigir o e-mail
 - **WHEN** a dona com e-mail não confirmado informa um e-mail novo e a senha certa
 - **THEN** a resposta é `200` com o novo e-mail, a confirmação vai para o novo endereço e o login passa a valer com o novo e-mail
+
+#### Scenario: Confirmação antiga deixa de valer
+- **WHEN** o e-mail é trocado depois de a confirmação ter sido enviada ao endereço antigo
+- **THEN** o token do endereço antigo é recusado
+
+### Requirement: Troca de e-mail recusada
+`PUT /api/conta/email` SHALL recusar a senha errada com `422`, o e-mail de outra conta com `409`, o mesmo e-mail da conta com `422`, e a conta já confirmada com `409`.
 
 #### Scenario: Senha errada
 - **WHEN** a troca é pedida com a senha atual errada
@@ -109,10 +116,6 @@ O e-mail SHALL conter o link `<APP_URL>/confirmar-email#token=<token>`, com o to
 #### Scenario: Conta já confirmada
 - **WHEN** uma conta com e-mail confirmado tenta trocar o e-mail
 - **THEN** a resposta é `409` e o e-mail não muda
-
-#### Scenario: Confirmação antiga deixa de valer
-- **WHEN** o e-mail é trocado depois de a confirmação ter sido enviada ao endereço antigo
-- **THEN** o token do endereço antigo é recusado
 
 ### Requirement: Contas existentes ficam não confirmadas
 As contas que já existiam quando esta mudança entrar SHALL ficar com o e-mail **não confirmado**, sem anistia, e SHALL poder confirmá-lo pelo reenvio.
