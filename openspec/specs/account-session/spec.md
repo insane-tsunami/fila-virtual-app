@@ -70,7 +70,7 @@ As rotas do dashboard que levam `{slug}` SHALL só valer para a loja da conta lo
 - **THEN** a resposta é `403` e nada muda na loja da conta B
 
 #### Scenario: Loja sem dono
-- **WHEN** uma conta logada chama uma rota do dashboard de uma loja que não tem dono (como a `veste-bem` original)
+- **WHEN** uma conta logada chama uma rota do dashboard de uma loja que não tem dono (como a loja de demonstração `veste-bem`)
 - **THEN** a resposta é `403`
 
 #### Scenario: Loja inexistente
