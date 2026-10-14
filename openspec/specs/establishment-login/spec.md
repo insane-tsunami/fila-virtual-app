@@ -22,7 +22,7 @@ A página de login SHALL oferecer a pergunta "Ainda não tem cadastro?" com um b
 - **THEN** a aplicação navega para `/cadastro`
 
 ### Requirement: Entrar com e-mail e senha
-Ao acionar "Entrar", a página SHALL enviar o e-mail e a senha à API. Se forem aceitos, SHALL deixar a pessoa logada e levá-la à página do dashboard que ela tentava abrir, ou a `/dashboard` quando veio direto para o login. Se a API recusar com `401`, SHALL mostrar a mensagem recebida, manter o e-mail e limpar a senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos. Com o e-mail ou a senha em branco, SHALL mostrar "Informe o e-mail e a senha." sem fazer nenhuma requisição.
+Ao acionar "Entrar", a página SHALL enviar o e-mail e a senha à API. Se forem aceitos, SHALL deixar a pessoa logada e levá-la à página do dashboard que ela tentava abrir, ou a `/dashboard` quando veio direto para o login. Com o e-mail ou a senha em branco, SHALL mostrar "Informe o e-mail e a senha." sem fazer nenhuma requisição.
 
 #### Scenario: Login correto
 - **WHEN** a dona informa o e-mail e a senha certos e aciona "Entrar"
@@ -32,13 +32,16 @@ Ao acionar "Entrar", a página SHALL enviar o e-mail e a senha à API. Se forem 
 - **WHEN** um visitante sem sessão abriu `/dashboard/qrcode`, foi levado ao login e entra com sucesso
 - **THEN** a aplicação navega para `/dashboard/qrcode`
 
-#### Scenario: Senha errada
-- **WHEN** a API recusa o login com `401`
-- **THEN** a página mostra "E-mail ou senha incorretos.", mantém o e-mail e esvazia a senha, e permanece em `/login`
-
 #### Scenario: Campos em branco
 - **WHEN** o visitante aciona "Entrar" sem preencher o e-mail ou a senha
 - **THEN** a página mostra "Informe o e-mail e a senha." e nenhuma requisição é feita
+
+### Requirement: Login recusado ou sem resposta
+Se a API recusar o login com `401`, a página SHALL mostrar a mensagem recebida, manter o e-mail e limpar a senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos.
+
+#### Scenario: Senha errada
+- **WHEN** a API recusa o login com `401`
+- **THEN** a página mostra "E-mail ou senha incorretos.", mantém o e-mail e esvazia a senha, e permanece em `/login`
 
 #### Scenario: API fora do ar
 - **WHEN** o visitante aciona "Entrar" e a API não responde

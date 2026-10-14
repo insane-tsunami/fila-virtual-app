@@ -6,7 +6,7 @@ Login por e-mail e senha com token de sessão com validade, e a regra de que as 
 ## Requirements
 
 ### Requirement: Login
-`POST /api/sessoes`, com o corpo `{"email", "senha"}`, SHALL abrir uma sessão quando o e-mail (sem diferenciar maiúsculas) e a senha conferem e responder `200` com `token`, `expira_em`, a conta (`email`, `cnpj`, `email_confirmado`) e a loja dela. Credenciais erradas SHALL ser recusadas com `401` e a mesma mensagem "E-mail ou senha incorretos." tanto para e-mail desconhecido quanto para senha errada. A chamada MUST NOT exigir login e SHALL responder `429`, sem abrir sessão, quando o limite de tentativas estiver esgotado (ver a capability `rate-limiting`). O e-mail não confirmado MUST NOT impedir o login.
+`POST /api/sessoes`, com o corpo `{"email", "senha"}`, SHALL abrir uma sessão quando o e-mail (sem diferenciar maiúsculas) e a senha conferem e responder `200` com `token`, `expira_em`, a conta (`email`, `cnpj`, `email_confirmado`) e a loja dela. Credenciais erradas SHALL ser recusadas com `401` e a mesma mensagem "E-mail ou senha incorretos." tanto para e-mail desconhecido quanto para senha errada. O e-mail não confirmado MUST NOT impedir o login.
 
 #### Scenario: Credenciais corretas
 - **WHEN** a dona envia o e-mail e a senha certos
@@ -24,13 +24,16 @@ Login por e-mail e senha com token de sessão com validade, e a regra de que as 
 - **WHEN** a mesma conta faz login duas vezes
 - **THEN** as duas sessões ficam válidas ao mesmo tempo, com tokens diferentes
 
-#### Scenario: Limite de tentativas esgotado
-- **WHEN** o e-mail ou o IP já esgotou o limite de tentativas erradas e o login é chamado, mesmo com a senha certa
-- **THEN** a resposta é `429` e nenhuma sessão é aberta
-
 #### Scenario: E-mail não confirmado
 - **WHEN** a dona com e-mail não confirmado faz login com a senha certa
 - **THEN** a resposta é `200` com `email_confirmado` falso e a sessão é aberta
+
+### Requirement: Limite de tentativas no login
+`POST /api/sessoes` SHALL responder `429`, sem abrir sessão, quando o limite de tentativas estiver esgotado (ver a capability `rate-limiting`).
+
+#### Scenario: Limite de tentativas esgotado
+- **WHEN** o e-mail ou o IP já esgotou o limite de tentativas erradas e o login é chamado, mesmo com a senha certa
+- **THEN** a resposta é `429` e nenhuma sessão é aberta
 
 ### Requirement: Token de sessão
 O token SHALL ser aleatório e imprevisível, com pelo menos 256 bits, e o servidor SHALL guardar apenas um hash dele, nunca o token. Cada sessão SHALL valer por 7 dias a partir da criação, sem renovação. Token expirado, encerrado ou desconhecido SHALL ser tratado como ausente.
@@ -44,7 +47,7 @@ O token SHALL ser aleatório e imprevisível, com pelo menos 256 bits, e o servi
 - **THEN** a resposta é `401`
 
 ### Requirement: Rotas do dashboard exigem sessão
-`GET /api/filas/{slug}/entradas`, `POST /api/filas/{slug}/entradas/{codigo}/finalizar`, `PUT /api/filas/{slug}/endereco`, `GET /api/conta`, `PUT /api/conta/senha` e `DELETE /api/sessao` SHALL exigir o cabeçalho `Authorization: Bearer <token>` com uma sessão válida, e SHALL responder `401`, sem dados e sem alterar nada, quando ele faltar ou não valer. Essas rotas MUST NOT aceitar a antiga `X-API-Key`. As chamadas do cliente (entrar na fila, consultar a posição, dados públicos da loja), o cadastro e o login MUST NOT exigir sessão.
+`GET /api/filas/{slug}/entradas`, `POST /api/filas/{slug}/entradas/{codigo}/finalizar`, `PUT /api/filas/{slug}/endereco`, `GET /api/conta`, `PUT /api/conta/senha` e `DELETE /api/sessao` SHALL exigir o cabeçalho `Authorization: Bearer <token>` com uma sessão válida, e SHALL responder `401`, sem dados e sem alterar nada, quando ele faltar ou não valer. Essas rotas MUST NOT aceitar a antiga `X-API-Key`.
 
 #### Scenario: Token válido
 - **WHEN** a dona chama a listagem da própria loja com um token válido
@@ -57,6 +60,9 @@ O token SHALL ser aleatório e imprevisível, com pelo menos 256 bits, e o servi
 #### Scenario: A chave antiga não vale mais
 - **WHEN** uma rota protegida é chamada com `X-API-Key` e sem `Authorization`
 - **THEN** a resposta é `401`
+
+### Requirement: Chamadas públicas não exigem sessão
+As chamadas do cliente (entrar na fila, consultar a posição, dados públicos da loja), o cadastro e o login MUST NOT exigir sessão.
 
 #### Scenario: Chamadas públicas
 - **WHEN** um cliente entra na fila, consulta a posição ou consulta os dados da loja sem enviar `Authorization`

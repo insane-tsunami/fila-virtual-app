@@ -24,7 +24,7 @@ A página `/dashboard/perfil` SHALL exibir o e-mail e o CNPJ da conta logada em 
 - **THEN** o estado "E-mail ainda não confirmado" aparece e o CNPJ continua somente leitura
 
 ### Requirement: Trocar a senha
-A página SHALL oferecer os campos "Senha atual", "Nova Senha" e "Confirme a nova senha", todos mascarados, e o botão "Atualizar". Ao acionar "Atualizar", SHALL conferir que a nova senha e a confirmação são iguais e, se forem, enviar a troca à API. Se forem diferentes, SHALL mostrar "As senhas não são iguais." sem fazer requisição. Se a API aceitar, SHALL mostrar "Senha alterada." e esvaziar os três campos. Se a API recusar com `422`, SHALL mostrar a mensagem recebida e esvaziar só os campos de senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos. A página MUST NOT oferecer seletor de avatar.
+A página SHALL oferecer os campos "Senha atual", "Nova Senha" e "Confirme a nova senha", todos mascarados, e o botão "Atualizar". Ao acionar "Atualizar", SHALL conferir que a nova senha e a confirmação são iguais e, se forem, enviar a troca à API. Se forem diferentes, SHALL mostrar "As senhas não são iguais." sem fazer requisição. Se a API aceitar, SHALL mostrar "Senha alterada." e esvaziar os três campos. A página MUST NOT oferecer seletor de avatar.
 
 #### Scenario: Ver os campos
 - **WHEN** a dona logada acessa `/dashboard/perfil`
@@ -39,6 +39,9 @@ A página SHALL oferecer os campos "Senha atual", "Nova Senha" e "Confirme a nov
 - **WHEN** a nova senha e a confirmação não são iguais
 - **THEN** a página mostra "As senhas não são iguais." e nenhuma requisição é feita
 
+### Requirement: Troca de senha recusada ou sem resposta
+Se a API recusar a troca da senha com `422`, a página SHALL mostrar a mensagem recebida e esvaziar só os campos de senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos.
+
 #### Scenario: Senha atual errada
 - **WHEN** a API recusa a troca com `422` por senha atual incorreta
 - **THEN** a página mostra "Senha atual incorreta." e continua em `/dashboard/perfil`, sem tratar isso como sessão expirada
@@ -48,11 +51,18 @@ A página SHALL oferecer os campos "Senha atual", "Nova Senha" e "Confirme a nov
 - **THEN** a página mostra "Não foi possível falar com o servidor. Tente de novo." e mantém os campos
 
 ### Requirement: Trocar o e-mail enquanto não confirmado
-Com o e-mail não confirmado, a página SHALL oferecer os campos "Novo e-mail" e "Senha atual" (mascarado) e o botão "Trocar e-mail". Ao acioná-lo, SHALL enviar a troca à API. Se a API aceitar, SHALL mostrar "E-mail alterado. Enviamos um link de confirmação para o novo endereço.", mostrar o novo e-mail e esvaziar os campos. Se a API recusar (`409`, `422` ou `429`), SHALL mostrar a mensagem recebida e esvaziar só a senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos. Com o e-mail confirmado, o formulário MUST NOT aparecer.
+Com o e-mail não confirmado, a página SHALL oferecer os campos "Novo e-mail" e "Senha atual" (mascarado) e o botão "Trocar e-mail". Ao acioná-lo, SHALL enviar a troca à API. Se a API aceitar, SHALL mostrar "E-mail alterado. Enviamos um link de confirmação para o novo endereço.", mostrar o novo e-mail e esvaziar os campos. Com o e-mail confirmado, o formulário MUST NOT aparecer.
 
 #### Scenario: Corrigir o e-mail
 - **WHEN** a dona com e-mail não confirmado informa um novo e-mail e a senha certa e aciona "Trocar e-mail"
 - **THEN** a tela mostra o novo e-mail, o aviso de que a confirmação foi enviada e esvazia os campos
+
+#### Scenario: Conta confirmada
+- **WHEN** a dona com e-mail confirmado abre o Perfil
+- **THEN** o formulário de troca de e-mail não aparece
+
+### Requirement: Troca de e-mail recusada ou sem resposta
+Se a API recusar a troca do e-mail (`409`, `422` ou `429`), a página SHALL mostrar a mensagem recebida e esvaziar só a senha. Se a API não responder, SHALL mostrar "Não foi possível falar com o servidor. Tente de novo." e manter os campos.
 
 #### Scenario: E-mail já usado
 - **WHEN** a API responde `409` porque o e-mail é de outra conta
@@ -61,10 +71,6 @@ Com o e-mail não confirmado, a página SHALL oferecer os campos "Novo e-mail" e
 #### Scenario: Senha errada
 - **WHEN** a API responde `422` por senha atual errada
 - **THEN** a tela mostra a mensagem recebida e esvazia só a senha
-
-#### Scenario: Conta confirmada
-- **WHEN** a dona com e-mail confirmado abre o Perfil
-- **THEN** o formulário de troca de e-mail não aparece
 
 #### Scenario: API fora do ar
 - **WHEN** a API não responde à troca
