@@ -35,7 +35,11 @@ final class AccountApiTest extends ApiTestCase
         $this->assertSame(201, $resposta->getStatusCode());
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $corpo['token']);
         $this->assertArrayHasKey('expira_em', $corpo);
-        $this->assertSame(['email' => 'contato@modaazul.com', 'cnpj' => '93339970000105', 'email_confirmado' => false], $corpo['conta']);
+        $this->assertSame([
+            'email' => 'contato@modaazul.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
+            'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
+        ], $corpo['conta']);
+        $this->assertNotNull($corpo['conta']['confirmar_ate']);
         $this->assertSame(
             ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
             $corpo['loja']
@@ -180,6 +184,69 @@ final class AccountApiTest extends ApiTestCase
         $this->assertSame(1, $this->contas());
     }
 
+    // --- Cadastro sobre conta não confirmada abandonada ---------------------------------------
+
+    /** Põe o prazo de confirmação de todas as contas no passado. */
+    private function vencerOPrazo(): void
+    {
+        $this->db->table('contas')->update(['confirmar_ate' => '2026-01-01 00:00:00']);
+    }
+
+    public function testDentroDoPrazoEh409EDepoisDeleOCadastroSubstituiAConta(): void
+    {
+        $this->chamar('POST', '/api/contas', $this->corpo());
+        $outra = $this->corpo(['cnpj' => '11.111.111/0001-91', 'nome' => 'Loja Nova']);
+
+        $this->assertSame(409, $this->chamar('POST', '/api/contas', $outra)->getStatusCode());
+
+        $this->vencerOPrazo();
+        $resposta = $this->chamar('POST', '/api/contas', $outra);
+
+        $this->assertSame(201, $resposta->getStatusCode());
+        $this->assertSame('11111111000191', $this->json($resposta)['conta']['cnpj']);
+        $this->assertSame(1, $this->contas());
+    }
+
+    public function testContaConfirmadaContinuaRecusandoComPrazoVencido(): void
+    {
+        $this->chamar('POST', '/api/contas', $this->corpo());
+        $this->vencerOPrazo();
+        $this->db->table('contas')->update(['email_confirmado_em' => '2026-01-01 00:00:00']);
+
+        $resposta = $this->chamar('POST', '/api/contas', $this->corpo(['cnpj' => '11.111.111/0001-91']));
+
+        $this->assertSame(409, $resposta->getStatusCode());
+        $this->assertSame(['erro' => 'Já existe uma conta com este e-mail.'], $this->json($resposta));
+    }
+
+    public function testTokenDaContaSubstituidaRecebe401(): void
+    {
+        $antigo = $this->json($this->chamar('POST', '/api/contas', $this->corpo()))['token'];
+        $this->vencerOPrazo();
+
+        $this->chamar('POST', '/api/contas', $this->corpo(['cnpj' => '11.111.111/0001-91']));
+
+        $this->assertSame(401, $this->chamar('GET', '/api/conta', null, $this->comSessao($antigo))->getStatusCode());
+    }
+
+    public function testLojaDaContaSubstituidaResponde404ESemEntradas(): void
+    {
+        $this->chamar('POST', '/api/contas', $this->corpo());
+        $loja = (int) $this->db->table('estabelecimentos')->where('slug', 'moda-azul')->value('id');
+        $this->db->table('entradas_fila')->insert([
+            'estabelecimento_id' => $loja, 'codigo' => 'antiga', 'telefone' => '5511971778203',
+            'status' => 'finalizado', 'entrou_em' => '2026-01-01 12:00:00',
+        ]);
+        $this->vencerOPrazo();
+        $this->assertSame(200, $this->chamar('GET', '/api/filas/moda-azul')->getStatusCode());
+
+        $this->chamar('POST', '/api/contas', $this->corpo(['cnpj' => '11.111.111/0001-91', 'nome' => 'Loja Nova']));
+
+        $this->assertSame(404, $this->chamar('GET', '/api/filas/moda-azul')->getStatusCode());
+        $this->assertSame(0, $this->db->table('entradas_fila')->where('estabelecimento_id', $loja)->count());
+        $this->assertSame(200, $this->chamar('GET', '/api/filas/' . self::SLUG)->getStatusCode(), 'a demonstração fica');
+    }
+
     // --- Slug ------------------------------------------------------------------------------
 
     public function testSlugGeradoDoNomeComAcentosESimbolos(): void
@@ -229,7 +296,10 @@ final class AccountApiTest extends ApiTestCase
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame([
-            'conta' => ['email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false],
+            'conta' => [
+                'email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
+                'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
+            ],
             'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
         ], $this->json($resposta));
     }

@@ -114,7 +114,7 @@ final class ConfirmacaoEmailService
      * exige a senha atual, invalida a confirmação anterior e manda a nova para o endereço novo.
      *
      * @param array<mixed> $corpo
-     * @return array{email: string, cnpj: string, email_confirmado: bool}
+     * @return array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}
      */
     public function trocarEmail(int $contaId, array $corpo): array
     {

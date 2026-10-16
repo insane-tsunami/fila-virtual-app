@@ -8,6 +8,7 @@ export const CONTA_DE_TESTE = {
   email: 'contato@modaazul.com',
   cnpj: '93339970000105',
   email_confirmado: true,
+  confirmar_ate: null,
 };
 
 export const LOJA_DE_TESTE = {

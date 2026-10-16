@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $senha_hash
  * @property string $criado_em
  * @property string|null $email_confirmado_em
+ * @property string|null $confirmar_ate prazo para confirmar o e-mail (UTC); depois dele a conta pode ser substituída
  */
 final class Conta extends Model
 {
@@ -27,6 +28,8 @@ final class Conta extends Model
             'email' => $this->email,
             'cnpj' => $this->cnpj,
             'email_confirmado' => $this->email_confirmado_em !== null,
+            // Depois da confirmação o prazo deixa de valer (a coluna não é limpa: o estado já decide).
+            'confirmar_ate' => $this->email_confirmado_em === null ? $this->confirmar_ate : null,
         ];
     }
 }

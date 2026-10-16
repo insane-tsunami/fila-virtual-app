@@ -399,6 +399,19 @@ final class RateLimitApiTest extends ApiTestCase
         $this->assertSame(429, $this->cadastro(self::EMAIL, '93339970000105')->getStatusCode());
     }
 
+    public function testCadastroQueSubstituiContaAbandonadaTambemConta(): void
+    {
+        $this->cadastrarConta('Moda Azul', self::EMAIL, '93339970000105');
+        $this->db->table('contas')->update(['confirmar_ate' => '2026-01-01 00:00:00']);
+        $this->db->table('limites_tentativas')->delete();
+        for ($i = 0; $i < 4; $i++) {
+            $this->api('POST', '/api/contas', []);
+        }
+
+        $this->assertSame(201, $this->cadastro(self::EMAIL, '93339970000105')->getStatusCode(), 'a quinta substitui');
+        $this->assertSame(429, $this->cadastro()->getStatusCode(), 'e a sexta já é bloqueada');
+    }
+
     public function testCadastroValidoDentroDoLimiteFunciona(): void
     {
         for ($i = 0; $i < 4; $i++) {

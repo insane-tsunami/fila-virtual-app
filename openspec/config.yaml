@@ -50,6 +50,10 @@ context: |
   trocar o e-mail só enquanto não confirmado e com a senha atual; as contas que já
   existiam ficam não confirmadas; link /confirmar-email#token=... (rota pública,
   também aberta com login); limites RATE_LIMIT_CONFIRMACAO_* e RATE_LIMIT_CONFIRMAR_IP.
+  Prazo de 14 dias para confirmar (contas.confirmar_ate, confirmar_ate nas respostas,
+  data na faixa); depois dele, conta não confirmada e sem entradas na fila nos últimos
+  14 dias é substituída por um cadastro com o mesmo e-mail ou CNPJ
+  (ExclusaoDeConta apaga a conta com a loja); conta confirmada nunca é substituída.
   Pendências: avatar. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).

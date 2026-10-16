@@ -7,6 +7,7 @@ namespace Services;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\QueryException;
 use Models\Conta;
+use Models\EntradaFila;
 use Models\Estabelecimento;
 use Support\Cnpj;
 use Support\Email;
@@ -17,23 +18,32 @@ use Support\Slug;
 /** Cadastro da conta (junto com a loja que ela possui), consulta dos dados e troca de senha. */
 final class ContaService
 {
+    /** Prazo para confirmar o e-mail e janela sem entradas na fila que tornam a conta substituível. */
+    public const PRAZO_CONFIRMACAO_DIAS = 14;
     private const NOME_MINIMO = 2;
     private const NOME_MAXIMO = 120;
     private const TENTATIVAS_DE_SLUG = 50;
+    /** O MySQL pode abortar a transação por deadlock (SELECT ... FOR UPDATE + índices únicos): refaz. */
+    private const TENTATIVAS_DA_TRANSACAO = 3;
+    private const VIOLACAO_DE_INTEGRIDADE = '23000';
+    private const MENSAGEM_EMAIL_EM_USO = 'Já existe uma conta com este e-mail.';
+    private const MENSAGEM_CNPJ_EM_USO = 'Já existe uma conta com este CNPJ.';
 
     public function __construct(
         private readonly SessaoService $sessoes,
         private readonly ?LimiteDeTentativas $limite = null,
         private readonly ?ConfirmacaoEmailService $confirmacao = null,
+        private readonly ExclusaoDeConta $exclusao = new ExclusaoDeConta(),
     )
     {
     }
 
     /**
-     * Cria conta, loja e sessão em uma transação: ou tudo, ou nada.
+     * Cria conta, loja e sessão em uma transação: ou tudo, ou nada. As contas abandonadas que ocupam
+     * o e-mail ou o CNPJ são apagadas na mesma transação (ver `liberarEmailECnpj`).
      *
      * @param array<mixed> $corpo
-     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
+     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
      */
     public function cadastrar(array $corpo, string $ip = IpDoCliente::DESCONHECIDO): array
     {
@@ -63,24 +73,33 @@ final class ContaService
         }
 
         $conta = null;
-        $resposta = Capsule::connection()->transaction(function () use ($email, $cnpj, $nome, $base, $senha, &$conta): array {
+        try {
+            $resposta = Capsule::connection()->transaction(function () use ($email, $cnpj, $nome, $base, $senha, &$conta): array {
+                $this->liberarEmailECnpj($email, $cnpj);
+
+                $agora = time();
+                $conta = Conta::create([
+                    'email' => $email,
+                    'cnpj' => $cnpj,
+                    'senha_hash' => Senha::gerarHash($senha),
+                    'criado_em' => gmdate('Y-m-d H:i:s', $agora),
+                    'confirmar_ate' => gmdate('Y-m-d H:i:s', $agora + self::PRAZO_CONFIRMACAO_DIAS * 86400),
+                ]);
+                $this->criarLoja($conta, $nome, $base);
+
+                return $this->sessoes->abrir($conta);
+            }, self::TENTATIVAS_DA_TRANSACAO);
+        } catch (QueryException $e) {
+            // Corrida: outro cadastro gravou o mesmo e-mail ou CNPJ entre a busca e o INSERT (UNIQUE).
             if (Conta::query()->where('email', $email)->exists()) {
-                throw new ConflitoException('Já existe uma conta com este e-mail.');
+                throw new ConflitoException(self::MENSAGEM_EMAIL_EM_USO);
             }
             if (Conta::query()->where('cnpj', $cnpj)->exists()) {
-                throw new ConflitoException('Já existe uma conta com este CNPJ.');
+                throw new ConflitoException(self::MENSAGEM_CNPJ_EM_USO);
             }
 
-            $conta = Conta::create([
-                'email' => $email,
-                'cnpj' => $cnpj,
-                'senha_hash' => Senha::gerarHash($senha),
-                'criado_em' => gmdate('Y-m-d H:i:s'),
-            ]);
-            $this->criarLoja($conta, $nome, $base);
-
-            return $this->sessoes->abrir($conta);
-        });
+            throw $e;
+        }
 
         // Depois do commit: a falha do envio (que só vai para o log) não pode desfazer o cadastro.
         $this->confirmacao?->enviar($conta);
@@ -88,7 +107,7 @@ final class ContaService
         return $resposta;
     }
 
-    /** @return array{conta: array{email: string, cnpj: string, email_confirmado: bool}, loja: array{nome: string, slug: string, endereco_publico: string|null}} */
+    /** @return array{conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}} */
     public function dados(int $contaId): array
     {
         $conta = Conta::query()->find($contaId) ?? throw new NaoEncontradoException('Conta não encontrada.');
@@ -139,6 +158,51 @@ final class ContaService
         $this->limite?->zerar(LimiteDeTentativas::SENHA_CONTA, $chave);
     }
 
+    /**
+     * Libera o e-mail e o CNPJ para o cadastro: 409 se alguma conta que os ocupa não pode ser
+     * substituída (a mensagem do e-mail vem antes da do CNPJ); senão, apaga todas elas.
+     */
+    private function liberarEmailECnpj(string $email, string $cnpj): void
+    {
+        $bloqueadoras = Conta::query()
+            ->where(static fn ($q) => $q->where('email', $email)->orWhere('cnpj', $cnpj))
+            ->lockForUpdate()
+            ->get();
+
+        $agora = time();
+        $doEmail = $bloqueadoras->firstWhere('email', $email);
+        if ($doEmail !== null && !$this->substituivel($doEmail, $agora)) {
+            throw new ConflitoException(self::MENSAGEM_EMAIL_EM_USO);
+        }
+        $doCnpj = $bloqueadoras->firstWhere('cnpj', $cnpj);
+        if ($doCnpj !== null && !$this->substituivel($doCnpj, $agora)) {
+            throw new ConflitoException(self::MENSAGEM_CNPJ_EM_USO);
+        }
+
+        foreach ($bloqueadoras as $abandonada) {
+            $this->exclusao->excluir($abandonada->id);
+        }
+    }
+
+    /**
+     * Abandonada: e-mail não confirmado, prazo vencido e nenhuma entrada na fila da loja nos últimos
+     * dias. Sem prazo gravado a conta nunca é substituível (na dúvida, não apaga).
+     */
+    private function substituivel(Conta $conta, int $agora): bool
+    {
+        if ($conta->email_confirmado_em !== null || $conta->confirmar_ate === null) {
+            return false;
+        }
+        if ($conta->confirmar_ate >= gmdate('Y-m-d H:i:s', $agora)) {
+            return false;
+        }
+
+        return !EntradaFila::query()
+            ->whereIn('estabelecimento_id', Estabelecimento::query()->select('id')->where('conta_id', $conta->id))
+            ->where('entrou_em', '>=', gmdate('Y-m-d H:i:s', $agora - self::PRAZO_CONFIRMACAO_DIAS * 86400))
+            ->exists();
+    }
+
     /** Cria a loja da conta com o primeiro slug livre (`base`, `base-2`, `base-3`...). */
     private function criarLoja(Conta $conta, string $nome, string $base): void
     {
@@ -154,8 +218,12 @@ final class ContaService
                 Estabelecimento::create(['nome' => $nome, 'slug' => $slug, 'conta_id' => $conta->id]);
 
                 return;
-            } catch (QueryException) {
-                // Outro cadastro levou o slug entre a consulta e o INSERT: tenta o próximo.
+            } catch (QueryException $e) {
+                // Outro cadastro levou o slug entre a consulta e o INSERT: tenta o próximo. Qualquer
+                // outro erro (um deadlock, por exemplo) já abortou a transação e precisa subir.
+                if ((string) $e->getCode() !== self::VIOLACAO_DE_INTEGRIDADE) {
+                    throw $e;
+                }
                 continue;
             }
         }
