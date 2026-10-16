@@ -268,7 +268,10 @@ final class ConfirmacaoEmailServiceTest extends DatabaseTestCase
 
         $conta = $this->servico->trocarEmail($this->conta->id, ['email' => '  NOVO@Exemplo.com ', 'senha' => 'senha-antiga-1']);
 
-        $this->assertSame(['email' => 'novo@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false], $conta);
+        $this->assertSame([
+            'email' => 'novo@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
+            'confirmar_ate' => $this->conta->confirmar_ate,
+        ], $conta, 'trocar o e-mail não mexe no prazo');
         $ultima = end($this->mailer->enviados);
         $this->assertSame('novo@exemplo.com', $ultima['para']);
         $novo = $this->mailer->ultimoToken();

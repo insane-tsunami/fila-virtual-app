@@ -155,6 +155,43 @@ final class EmailConfirmationApiTest extends ApiTestCase
         $this->assertTrue($this->conta($sessao)['email_confirmado']);
     }
 
+    public function testCadastroLoginEGetContaTrazemOMesmoPrazoEAConfirmacaoOZera(): void
+    {
+        $cadastro = $this->cadastrar();
+        $prazo = $cadastro['conta']['confirmar_ate'];
+        $login = $this->json($this->api('POST', '/api/sessoes', ['email' => self::EMAIL, 'senha' => self::SENHA]));
+
+        $this->assertNotNull($prazo);
+        $this->assertSame($prazo, $login['conta']['confirmar_ate']);
+        $this->assertSame($prazo, $this->conta($cadastro['token'])['confirmar_ate']);
+
+        $this->confirmar($this->mailer->ultimoToken());
+
+        $this->assertNull($this->conta($cadastro['token'])['confirmar_ate']);
+    }
+
+    public function testLinkDeConfirmacaoDaContaSubstituidaRecebe422(): void
+    {
+        $this->cadastrar();
+        $link = $this->mailer->ultimoToken();
+        $this->db->table('contas')->update(['confirmar_ate' => '2026-01-01 00:00:00']);
+
+        $this->cadastrar(self::EMAIL, '11111111000191');
+
+        $this->assertSame(422, $this->confirmar($link)->getStatusCode());
+        $this->assertSame(200, $this->confirmar($this->mailer->ultimoToken())->getStatusCode(), 'o link da conta nova vale');
+    }
+
+    public function testReenviarNaoRenovaOPrazo(): void
+    {
+        $sessao = $this->cadastrar()['token'];
+        $this->db->table('contas')->update(['confirmar_ate' => '2026-10-01 12:00:00']);
+
+        $this->assertSame(202, $this->reenviar($sessao)->getStatusCode());
+
+        $this->assertSame('2026-10-01 12:00:00', $this->conta($sessao)['confirmar_ate']);
+    }
+
     public function testContaAnteriorAMigracaoFicaNaoConfirmada(): void
     {
         $sessao = $this->cadastrar()['token'];
@@ -264,7 +301,9 @@ final class EmailConfirmationApiTest extends ApiTestCase
 
     public function testTrocarOEmailDaContaNaoConfirmada(): void
     {
-        $sessao = $this->cadastrar()['token'];
+        $cadastro = $this->cadastrar();
+        $sessao = $cadastro['token'];
+        $prazo = $cadastro['conta']['confirmar_ate'];
         $antigo = $this->mailer->ultimoToken();
 
         $resposta = $this->trocar($sessao, '  Novo@Exemplo.com ');
@@ -272,8 +311,9 @@ final class EmailConfirmationApiTest extends ApiTestCase
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame(
-            ['email' => 'novo@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false],
-            $corpo['conta']
+            ['email' => 'novo@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false, 'confirmar_ate' => $prazo],
+            $corpo['conta'],
+            'trocar o e-mail não renova o prazo'
         );
         $this->assertSame('novo@exemplo.com', end($this->mailer->enviados)['para']);
         $this->assertSame(422, $this->confirmar($antigo)->getStatusCode(), 'o token do endereço antigo deixa de valer');

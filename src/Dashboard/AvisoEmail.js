@@ -10,6 +10,16 @@ import { useSessao } from '../sessao/SessaoProvider';
 const ERRO_REDE = 'Não foi possível falar com o servidor. Tente de novo.';
 const AINDA_NAO =
   'Ainda não confirmado. Abra o link do e-mail ou peça um novo.';
+const SUBSTITUICAO =
+  'Depois dessa data, se a loja ficar 14 dias sem clientes na fila, um novo cadastro com este e-mail ou CNPJ substitui esta conta e apaga a loja.';
+
+// `confirmar_ate` vem em UTC ('AAAA-MM-DD HH:MM:SS'); a data mostrada é a do fuso do navegador.
+// Sem prazo (ou com um valor que não é data) a faixa fica sem a data.
+function dataDoPrazo(valor) {
+  if (typeof valor !== 'string') return null;
+  const data = new Date(`${valor.replace(' ', 'T')}Z`);
+  return Number.isNaN(data.getTime()) ? null : data.toLocaleDateString('pt-BR');
+}
 
 // Faixa do dashboard enquanto o e-mail da conta não está confirmado. A conta não confirmada
 // usa o dashboard normalmente; a faixa só lembra de confirmar (e dá a saída para um e-mail
@@ -20,6 +30,7 @@ export default function AvisoEmail() {
   const [ocupado, setOcupado] = useState(false);
 
   if (!conta || conta.email_confirmado !== false) return null;
+  const prazo = dataDoPrazo(conta.confirmar_ate);
 
   async function reenviar() {
     setMensagem('');
@@ -56,6 +67,13 @@ export default function AvisoEmail() {
         <strong>Confirme seu e-mail.</strong>
         Enviamos um link para {conta.email}. Sem confirmar, não dá para
         recuperar a senha por e-mail.
+        {prazo && (
+          <>
+            {' '}
+            <strong>{`Confirme até ${prazo}.`}</strong>
+            {SUBSTITUICAO}
+          </>
+        )}
       </p>
       <Button
         variant="contained"

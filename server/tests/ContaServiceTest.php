@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use Illuminate\Database\Connection;
+use Illuminate\Database\QueryException;
 use Models\Conta;
+use PDOException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Services\ConflitoException;
 use Services\ContaService;
@@ -52,7 +55,10 @@ final class ContaServiceTest extends DatabaseTestCase
         $resposta = $this->contas->cadastrar($this->corpo());
 
         $this->assertSame(64, strlen($resposta['token']));
-        $this->assertSame(['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false], $resposta['conta']);
+        $this->assertSame([
+            'email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
+            'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
+        ], $resposta['conta']);
         $this->assertSame(
             ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
             $resposta['loja']
@@ -64,6 +70,19 @@ final class ContaServiceTest extends DatabaseTestCase
         );
         $this->assertSame(1, $this->db->table('sessoes')->where('conta_id', $conta->id)->count());
         $this->assertNotNull($this->sessoes->resolver($resposta['token']));
+    }
+
+    public function testCadastroGravaOPrazoDeConfirmacaoQuatorzeDiasDepoisDoCadastro(): void
+    {
+        $resposta = $this->contas->cadastrar($this->corpo());
+
+        $conta = Conta::query()->firstOrFail();
+        $this->assertSame($conta->confirmar_ate, $resposta['conta']['confirmar_ate']);
+        $this->assertMatchesRegularExpression('/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/', $conta->confirmar_ate);
+        $this->assertSame(
+            ContaService::PRAZO_CONFIRMACAO_DIAS * 86400,
+            strtotime($conta->confirmar_ate . ' UTC') - strtotime($conta->criado_em . ' UTC')
+        );
     }
 
     public function testCadastroGuardaEmailECnpjNormalizados(): void
@@ -263,9 +282,24 @@ final class ContaServiceTest extends DatabaseTestCase
         $id = (int) $this->db->table('contas')->value('id');
 
         $this->assertSame([
-            'conta' => ['email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false],
+            'conta' => [
+                'email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
+                'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
+            ],
             'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
         ], $this->contas->dados($id));
+    }
+
+    public function testDadosDeContaConfirmadaTrazemOPrazoNulo(): void
+    {
+        $this->contas->cadastrar($this->corpo());
+        $this->db->table('contas')->update(['email_confirmado_em' => gmdate('Y-m-d H:i:s')]);
+        $id = (int) $this->db->table('contas')->value('id');
+
+        $conta = $this->contas->dados($id)['conta'];
+
+        $this->assertTrue($conta['email_confirmado']);
+        $this->assertNull($conta['confirmar_ate']);
     }
 
     public function testDadosNaoVazamSenhaNemHash(): void
@@ -379,5 +413,244 @@ final class ContaServiceTest extends DatabaseTestCase
         } catch (LimiteExcedidoException) {
             $this->assertSame(0, $this->db->table('contas')->count());
         }
+    }
+
+    // --- Cadastro sobre conta não confirmada abandonada -----------------------------------
+
+    private const PRAZO_VENCIDO = '2026-01-01 00:00:00';
+
+    /** Cadastra e devolve o id da conta; `abandonada` põe o prazo no passado. */
+    private function contaExistente(string $email, string $cnpj, string $nome, bool $abandonada = true): int
+    {
+        $this->contas->cadastrar($this->corpo(['email' => $email, 'cnpj' => $cnpj, 'nome' => $nome]));
+        $id = (int) $this->db->table('contas')->where('email', $email)->value('id');
+        if ($abandonada) {
+            $this->db->table('contas')->where('id', $id)->update(['confirmar_ate' => self::PRAZO_VENCIDO]);
+        }
+
+        return $id;
+    }
+
+    private function entradaNaFila(int $contaId, int $diasAtras): void
+    {
+        $loja = (int) $this->db->table('estabelecimentos')->where('conta_id', $contaId)->value('id');
+        $this->db->table('entradas_fila')->insert([
+            'estabelecimento_id' => $loja, 'codigo' => 'c' . $contaId . '-' . $diasAtras, 'telefone' => '5511971778203',
+            'status' => 'finalizado', 'entrou_em' => gmdate('Y-m-d H:i:s', time() - $diasAtras * 86400),
+        ]);
+    }
+
+    private function assertConflito(array $corpo, string $trecho): void
+    {
+        try {
+            $this->contas->cadastrar($corpo);
+            $this->fail('devia recusar com 409');
+        } catch (ConflitoException $e) {
+            $this->assertStringContainsString($trecho, $e->getMessage());
+        }
+    }
+
+    private function existe(int $contaId): bool
+    {
+        return $this->db->table('contas')->where('id', $contaId)->exists();
+    }
+
+    public function testEmailDeContaAbandonadaFicaComOCadastroNovo(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+
+        $resposta = $this->contas->cadastrar($this->corpo(['cnpj' => '11.111.111/0001-91', 'nome' => 'Moda Azul']));
+
+        $this->assertFalse($this->existe($antiga));
+        $this->assertSame('11111111000191', $resposta['conta']['cnpj']);
+        $this->assertSame('moda-azul', $resposta['loja']['slug'], 'o slug da loja apagada fica livre');
+        $this->assertSame(1, $this->db->table('contas')->count());
+        $this->assertTrue($this->db->table('estabelecimentos')->where('slug', 'veste-bem')->exists());
+    }
+
+    public function testCnpjDeContaAbandonadaComOutroEmailFicaComOCadastroNovo(): void
+    {
+        $antiga = $this->contaExistente('antiga@exemplo.com', '93339970000105', 'Loja Antiga');
+
+        $resposta = $this->contas->cadastrar($this->corpo());
+
+        $this->assertFalse($this->existe($antiga));
+        $this->assertSame('contato@vestebem.com', $resposta['conta']['email']);
+        $this->assertFalse($this->db->table('estabelecimentos')->where('slug', 'loja-antiga')->exists());
+    }
+
+    public function testDentroDoPrazoEh409(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul', false);
+        $this->db->table('contas')->update(['confirmar_ate' => gmdate('Y-m-d H:i:s', time() + 60)]);
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'e-mail');
+
+        $this->assertTrue($this->existe($antiga));
+    }
+
+    public function testLojaComEntradaNosUltimos14DiasEh409(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $this->entradaNaFila($antiga, 13);
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'e-mail');
+
+        $this->assertTrue($this->existe($antiga));
+        $this->assertSame(1, $this->db->table('entradas_fila')->count());
+    }
+
+    public function testEntradaMaisAntigaQue14DiasNaoProtegeEAEntradaSaiComALoja(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $this->entradaNaFila($antiga, 15);
+
+        $this->contas->cadastrar($this->corpo(['cnpj' => '11111111000191']));
+
+        $this->assertFalse($this->existe($antiga));
+        $this->assertSame(0, $this->db->table('entradas_fila')->count());
+    }
+
+    public function testEmailAbandonadoECnpjDeContaProtegidaEh409ENadaMuda(): void
+    {
+        $doEmail = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $doCnpj = $this->contaExistente('outra@exemplo.com', '11111111000191', 'Loja B', false);
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'CNPJ');
+
+        $this->assertTrue($this->existe($doEmail));
+        $this->assertTrue($this->existe($doCnpj));
+    }
+
+    public function testEmailProtegidoECnpjAbandonadoEh409ComAMensagemDoEmail(): void
+    {
+        $doEmail = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul', false);
+        $doCnpj = $this->contaExistente('outra@exemplo.com', '11111111000191', 'Loja B');
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'e-mail');
+
+        $this->assertTrue($this->existe($doEmail));
+        $this->assertTrue($this->existe($doCnpj));
+    }
+
+    public function testEmailECnpjDeDuasContasAbandonadasSaoApagadas(): void
+    {
+        $doEmail = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $doCnpj = $this->contaExistente('outra@exemplo.com', '11111111000191', 'Loja B');
+
+        $this->contas->cadastrar($this->corpo(['cnpj' => '11111111000191', 'nome' => 'Loja Nova']));
+
+        $this->assertFalse($this->existe($doEmail));
+        $this->assertFalse($this->existe($doCnpj));
+        $this->assertSame(1, $this->db->table('contas')->count());
+        $this->assertEqualsCanonicalizing(['loja-nova', 'veste-bem'], $this->db->table('estabelecimentos')->pluck('slug')->all());
+    }
+
+    public function testContaConfirmadaAntigaESemClientesNuncaESubstituida(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $this->db->table('contas')->update(['email_confirmado_em' => '2026-01-01 00:00:00']);
+        $sessoes = $this->db->table('sessoes')->count();
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'e-mail');
+        $this->assertConflito($this->corpo(['email' => 'nova@exemplo.com']), 'CNPJ');
+
+        $this->assertTrue($this->existe($antiga));
+        $this->assertTrue($this->db->table('estabelecimentos')->where('slug', 'moda-azul')->exists());
+        $this->assertSame($sessoes, $this->db->table('sessoes')->count());
+    }
+
+    public function testContaNaoConfirmadaSemPrazoNuncaESubstituida(): void
+    {
+        $antiga = $this->contaExistente('contato@vestebem.com', '93339970000105', 'Moda Azul');
+        $this->db->table('contas')->update(['confirmar_ate' => null]);
+
+        $this->assertConflito($this->corpo(['cnpj' => '11111111000191']), 'e-mail');
+
+        $this->assertTrue($this->existe($antiga));
+    }
+
+    // --- Corrida e erros do banco no cadastro --------------------------------------------
+
+    /** PDOException com o SQLSTATE em texto, como o PDO lança (o construtor só aceita código inteiro). */
+    private static function erroDoBanco(string $sqlstate, string $mensagem): PDOException
+    {
+        return new class ($sqlstate, $mensagem) extends PDOException {
+            public function __construct(string $sqlstate, string $mensagem)
+            {
+                parent::__construct($mensagem);
+                $this->code = $sqlstate;
+                $this->errorInfo = [$sqlstate, 0, $mensagem];
+            }
+        };
+    }
+
+    /**
+     * Faz o próximo INSERT na tabela falhar com o erro dado. Com `$rival`, essa conta aparece no banco
+     * logo depois (fora da transação), como se outro cadastro a tivesse gravado entre a busca e o INSERT.
+     *
+     * @param array<string, string>|null $rival
+     */
+    private function falharProximoInsert(string $tabela, string $sqlstate, string $mensagem, ?array $rival = null): void
+    {
+        $estado = ['falhou' => false, 'rival' => $rival];
+        $this->db->getConnection()->beforeExecuting(
+            function (string $sql, array $bindings, Connection $conexao) use (&$estado, $tabela, $sqlstate, $mensagem): void {
+                if (!$estado['falhou'] && preg_match('/\Ainsert into [`"]' . $tabela . '[`"]/', $sql) === 1) {
+                    $estado['falhou'] = true;
+
+                    throw new QueryException($conexao->getName(), $sql, $bindings, self::erroDoBanco($sqlstate, $mensagem));
+                }
+                if ($estado['falhou'] && $estado['rival'] !== null && $conexao->transactionLevel() === 0) {
+                    $rival = $estado['rival'];
+                    $estado['rival'] = null;
+                    $conexao->table('contas')->insert($rival);
+                }
+            }
+        );
+    }
+
+    public function testContaCriadaEntreABuscaEOInsertEh409EmVezDe500(): void
+    {
+        $this->falharProximoInsert('contas', '23000', 'UNIQUE constraint failed: contas.email', [
+            'email' => 'contato@vestebem.com', 'cnpj' => '11111111000191', 'senha_hash' => 'x', 'criado_em' => gmdate('Y-m-d H:i:s'),
+        ]);
+
+        $this->assertConflito($this->corpo(), 'e-mail');
+
+        $this->assertSame(['11111111000191'], $this->db->table('contas')->pluck('cnpj')->all(), 'só a conta do outro cadastro');
+        $this->assertSame(1, $this->db->table('estabelecimentos')->count(), 'nenhuma loja nova');
+        $this->assertSame(0, $this->db->table('sessoes')->count());
+    }
+
+    public function testErroDoBancoSemConflitoContinuaSubindo(): void
+    {
+        $this->falharProximoInsert('contas', 'HY000', 'disk I/O error');
+
+        try {
+            $this->contas->cadastrar($this->corpo());
+            $this->fail('o erro do banco devia subir');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('disk I/O error', $e->getMessage());
+        }
+        $this->assertSame(0, $this->db->table('contas')->count());
+    }
+
+    public function testErroDoBancoNaCriacaoDaLojaNaoViraTentativaDeOutroSlug(): void
+    {
+        $this->falharProximoInsert('estabelecimentos', 'HY000', 'disk I/O error');
+
+        $this->expectException(QueryException::class);
+        $this->contas->cadastrar($this->corpo());
+    }
+
+    public function testDeadlockRefazATransacao(): void
+    {
+        $this->falharProximoInsert('contas', '40001', 'Deadlock found when trying to get lock; try restarting transaction');
+
+        $resposta = $this->contas->cadastrar($this->corpo());
+
+        $this->assertSame('contato@vestebem.com', $resposta['conta']['email']);
+        $this->assertSame(1, $this->db->table('contas')->count());
     }
 }

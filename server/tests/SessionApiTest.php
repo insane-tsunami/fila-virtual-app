@@ -36,6 +36,8 @@ final class SessionApiTest extends ApiTestCase
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $corpo['token']);
         $this->assertSame('a@exemplo.com', $corpo['conta']['email']);
         $this->assertSame('moda-azul', $corpo['loja']['slug']);
+        $this->assertSame($this->db->table('contas')->value('confirmar_ate'), $corpo['conta']['confirmar_ate']);
+        $this->assertNotNull($corpo['conta']['confirmar_ate'], 'conta não confirmada traz o prazo no login');
     }
 
     public function testEmailDoLoginNaoDiferenciaMaiusculas(): void
