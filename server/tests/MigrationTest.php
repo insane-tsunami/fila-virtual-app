@@ -28,6 +28,7 @@ final class MigrationTest extends DatabaseTestCase
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
+            '0010_add_confirmar_ate_em_contas',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -122,6 +123,7 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertSame([
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
+            '0010_add_confirmar_ate_em_contas',
         ], $executadas);
         $conta = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->first();
         $this->assertNull($conta->email_confirmado_em, 'sem anistia: a conta antiga não está confirmada');
@@ -242,6 +244,7 @@ final class MigrationTest extends DatabaseTestCase
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
+            '0010_add_confirmar_ate_em_contas',
         ], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'loja-antiga')->first();
         $this->assertNull($loja->conta_id);
@@ -271,6 +274,7 @@ final class MigrationTest extends DatabaseTestCase
             '0007_create_redefinicoes_senha',
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
+            '0010_add_confirmar_ate_em_contas',
         ], $executadas);
         $this->assertSame(
             ['outra-loja'],
@@ -338,7 +342,7 @@ final class MigrationTest extends DatabaseTestCase
         rmdir($dir);
     }
 
-    /** Roda a 0009 e devolve o que ela mandou para o log. */
+    /** Roda a 0009 (e as seguintes) e devolve o que foi para o log. */
     private function rodarAZeroNoveCapturandoOLog(): string
     {
         $arquivo = (string) tempnam(sys_get_temp_dir(), 'log');
@@ -348,7 +352,10 @@ final class MigrationTest extends DatabaseTestCase
         } finally {
             ini_set('error_log', (string) $anterior);
         }
-        $this->assertSame(['0009_remove_estabelecimento_veste_bem_demonstracao'], $executadas);
+        $this->assertSame([
+            '0009_remove_estabelecimento_veste_bem_demonstracao',
+            '0010_add_confirmar_ate_em_contas',
+        ], $executadas);
         $log = (string) file_get_contents($arquivo);
         unlink($arquivo);
 
@@ -431,6 +438,38 @@ final class MigrationTest extends DatabaseTestCase
 
         $this->assertSame(['loja-a'], $this->db->table('estabelecimentos')->pluck('slug')->all());
         $this->assertSame('', $log);
+        $this->limpar($dir);
+    }
+
+    // --- 0010: prazo para confirmar o e-mail ---------------------------------------------------
+
+    public function testZeroDezCriaAColunaDoPrazoNula(): void
+    {
+        $this->migrate();
+
+        $this->assertTrue($this->db->schema()->hasColumn('contas', 'confirmar_ate'));
+        $this->db->table('contas')->insert($this->conta());
+        $this->assertNull($this->db->table('contas')->value('confirmar_ate'));
+    }
+
+    public function testZeroDezDaQuatorzeDiasAsContasAntigasNaoConfirmadasEDeixaAsConfirmadasSemPrazo(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $this->db->table('contas')->insert($this->conta('antiga@exemplo.com', '93339970000105'));
+        $this->db->table('contas')->insert(
+            ['email_confirmado_em' => '2026-10-05 10:00:00'] + $this->conta('confirmada@exemplo.com', '11222333000181')
+        );
+
+        $antes = time();
+        $this->migrator()->run();
+        $depois = time();
+
+        $prazo = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->value('confirmar_ate');
+        $this->assertNotNull($prazo);
+        $segundos = strtotime($prazo . ' UTC');
+        $this->assertGreaterThanOrEqual($antes + 14 * 86400, $segundos, 'conta a partir da migração, não do cadastro');
+        $this->assertLessThanOrEqual($depois + 14 * 86400, $segundos);
+        $this->assertNull($this->db->table('contas')->where('email', 'confirmada@exemplo.com')->value('confirmar_ate'));
         $this->limpar($dir);
     }
 }

@@ -75,6 +75,35 @@ describe('Faixa "Confirme seu e-mail"', () => {
     );
   });
 
+  it('mostra o prazo e o aviso de substituição quando há confirmar_ate', () => {
+    const u = renderFaixa({
+      ...NAO_CONFIRMADA,
+      confirmar_ate: '2026-10-28 15:00:00',
+    });
+
+    expect(u.getByText('Confirme até 28/10/2026.')).toBeInTheDocument();
+    expect(
+      u.getByText(
+        /um novo cadastro com este e-mail ou CNPJ substitui esta conta e apaga a loja/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('sem confirmar_ate fica como antes, sem data', () => {
+    const u = renderFaixa({ ...NAO_CONFIRMADA, confirmar_ate: null });
+
+    expect(u.getByText('Confirme seu e-mail.')).toBeInTheDocument();
+    expect(u.queryByText(/Confirme até/)).not.toBeInTheDocument();
+    expect(u.queryByText(/substitui esta conta/)).not.toBeInTheDocument();
+  });
+
+  it('com confirmar_ate inválido não quebra e não mostra data', () => {
+    const u = renderFaixa({ ...NAO_CONFIRMADA, confirmar_ate: 'amanhã' });
+
+    expect(u.getByText('Confirme seu e-mail.')).toBeInTheDocument();
+    expect(u.queryByText(/Confirme até/)).not.toBeInTheDocument();
+  });
+
   it('não aparece com o e-mail confirmado', () => {
     const u = renderFaixa({ ...CONTA_DE_TESTE, email_confirmado: true });
 

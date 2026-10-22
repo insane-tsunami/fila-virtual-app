@@ -21,6 +21,7 @@ use Services\ConflitoException;
 use Services\ConfirmacaoEmailService;
 use Services\ContaService;
 use Services\DadosInvalidosException;
+use Services\ExclusaoDeConta;
 use Services\FabricaDeMailer;
 use Services\FilaService;
 use Services\LimiteDeTentativas;
@@ -74,7 +75,7 @@ final class Aplicacao
             : FabricaDeMailer::criar($config['mail'] ?? [], $registrar);
         $appUrl = (string) ($config['app_url'] ?? '');
         $confirmacao = new ConfirmacaoEmailService($mailer, $appUrl, $limite, $registrar);
-        $conta = new ContaController(new ContaService($sessoes, $limite, $confirmacao), $proxies);
+        $conta = new ContaController(new ContaService($sessoes, $limite, $confirmacao, new ExclusaoDeConta()), $proxies);
         $sessao = new SessaoController($sessoes, $proxies);
         $confirmar = new ConfirmacaoEmailController($confirmacao, $proxies);
         $recuperacao = new RecuperacaoSenhaController(
