@@ -60,7 +60,7 @@ final class ContaServiceTest extends DatabaseTestCase
             'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
         ], $resposta['conta']);
         $this->assertSame(
-            ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
+            ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null, 'avatar' => null],
             $resposta['loja']
         );
         $conta = Conta::query()->firstOrFail();
@@ -286,7 +286,7 @@ final class ContaServiceTest extends DatabaseTestCase
                 'email' => 'contato@vestebem.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
                 'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
             ],
-            'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
+            'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null, 'avatar' => null],
         ], $this->contas->dados($id));
     }
 

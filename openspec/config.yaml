@@ -25,12 +25,12 @@ context: |
   API com sessão (Authorization: Bearer <token>, 7 dias, token só como hash no
   banco): GET /api/conta, PUT /api/conta/senha, POST /api/conta/email/reenviar,
   PUT /api/conta/email (trocar o e-mail enquanto não confirmado), DELETE /api/sessao e, só para a
-  loja da própria conta, listar a fila, finalizar e PUT /api/filas/{slug}/endereco
-  (specs queue-intake, queue-management, store-address, establishment-account,
-  account-session e api-platform). A antiga chave X-API-Key foi removida.
+  loja da própria conta, listar a fila, finalizar, PUT /api/filas/{slug}/endereco
+  e PUT /api/filas/{slug}/avatar (specs queue-intake, queue-management,
+  store-address, store-avatar, establishment-account, account-session e api-platform). A antiga chave X-API-Key foi removida.
   Estado atual: o front inteiro consome a API por src/api.js (base em
   REACT_APP_API_URL): cadastro, login, dashboard (fila real, atualização a cada
-  5 s), QR code, Perfil (trocar a senha) e a página do cliente. As rotas do
+  5 s), QR code, Perfil (trocar a senha e o avatar da loja) e a página do cliente. As rotas do
   dashboard ficam atrás do login (src/sessao); o token fica em sessionStorage.
   Limite de tentativas (spec rate-limiting): login (por e-mail+IP, teto por e-mail
   somando IPs e por IP; o acerto zera só o par), cadastro
@@ -54,7 +54,10 @@ context: |
   data na faixa); depois dele, conta não confirmada e sem entradas na fila nos últimos
   14 dias é substituída por um cadastro com o mesmo e-mail ou CNPJ
   (ExclusaoDeConta apaga a conta com a loja); conta confirmada nunca é substituída.
-  Pendências: avatar. Node 16 fixado para o front.
+  Avatar da loja (spec store-avatar): cor e ícone de listas fixas (6 + 6) em
+  estabelecimentos.avatar_cor/avatar_icone, avatar (null ou {cor, icone}) em todas as
+  respostas da loja, escolhido no Perfil e mostrado na barra lateral no lugar da
+  inicial; sem upload de imagem. Node 16 fixado para o front.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

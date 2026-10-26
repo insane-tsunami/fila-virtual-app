@@ -29,6 +29,7 @@ final class MigrationTest extends DatabaseTestCase
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
+            '0011_add_avatar_to_estabelecimentos',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -124,6 +125,7 @@ final class MigrationTest extends DatabaseTestCase
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
+            '0011_add_avatar_to_estabelecimentos',
         ], $executadas);
         $conta = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->first();
         $this->assertNull($conta->email_confirmado_em, 'sem anistia: a conta antiga não está confirmada');
@@ -245,6 +247,7 @@ final class MigrationTest extends DatabaseTestCase
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
+            '0011_add_avatar_to_estabelecimentos',
         ], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'loja-antiga')->first();
         $this->assertNull($loja->conta_id);
@@ -275,6 +278,7 @@ final class MigrationTest extends DatabaseTestCase
             '0008_add_email_confirmado_e_confirmacoes_email',
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
+            '0011_add_avatar_to_estabelecimentos',
         ], $executadas);
         $this->assertSame(
             ['outra-loja'],
@@ -355,6 +359,7 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertSame([
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
+            '0011_add_avatar_to_estabelecimentos',
         ], $executadas);
         $log = (string) file_get_contents($arquivo);
         unlink($arquivo);
@@ -470,6 +475,22 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertGreaterThanOrEqual($antes + 14 * 86400, $segundos, 'conta a partir da migração, não do cadastro');
         $this->assertLessThanOrEqual($depois + 14 * 86400, $segundos);
         $this->assertNull($this->db->table('contas')->where('email', 'confirmada@exemplo.com')->value('confirmar_ate'));
+        $this->limpar($dir);
+    }
+
+    // --- 0011: avatar da loja ------------------------------------------------------------------
+
+    public function testOnzeCriaAsColunasDoAvatarEAsLojasAntigasFicamSemAvatar(): void
+    {
+        $dir = $this->migrarAteAOitava();
+        $antiga = $this->criarEstabelecimento('loja-antiga', 'Loja Antiga');
+
+        $this->migrator()->run();
+
+        $this->assertTrue($this->db->schema()->hasColumns('estabelecimentos', ['avatar_cor', 'avatar_icone']));
+        $loja = $this->db->table('estabelecimentos')->where('id', $antiga)->first();
+        $this->assertNull($loja->avatar_cor);
+        $this->assertNull($loja->avatar_icone);
         $this->limpar($dir);
     }
 }

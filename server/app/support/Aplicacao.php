@@ -111,6 +111,7 @@ final class Aplicacao
         $app->post('/api/filas/{slug}/entradas/{codigo}/finalizar', [$dashboard, 'finalizar'])
             ->add($daLoja)->add($autenticada);
         $app->put('/api/filas/{slug}/endereco', [$loja, 'definirEndereco'])->add($daLoja)->add($autenticada);
+        $app->put('/api/filas/{slug}/avatar', [$loja, 'definirAvatar'])->add($daLoja)->add($autenticada);
 
         // Ordem de execução: Cors (mais externo) -> erros -> roteamento -> rota.
         $app->addRoutingMiddleware();

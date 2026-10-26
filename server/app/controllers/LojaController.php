@@ -9,7 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Requisicao;
 use Services\LojaService;
 use Support\Json;
 
-/** Dados da loja: a consulta é pública; definir o endereço exige a chave provisória. */
+/** Dados da loja: a consulta é pública; definir o endereço e o avatar exige a sessão da dona. */
 final class LojaController
 {
     public function __construct(private readonly LojaService $loja)
@@ -26,5 +26,11 @@ final class LojaController
     public function definirEndereco(Requisicao $requisicao, Resposta $resposta, array $args): Resposta
     {
         return Json::resposta($resposta, $this->loja->definirEndereco($args['slug'], Json::corpo($requisicao)));
+    }
+
+    /** @param array<string, string> $args */
+    public function definirAvatar(Requisicao $requisicao, Resposta $resposta, array $args): Resposta
+    {
+        return Json::resposta($resposta, $this->loja->definirAvatar($args['slug'], Json::corpo($requisicao)));
     }
 }

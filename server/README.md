@@ -54,7 +54,7 @@ Nunca commite valores reais de banco. (A antiga variável `API_KEY` não existe 
 php bin/migrate        # ou: composer migrate
 ```
 
-Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e não insere nenhuma loja: em banco novo, cada loja nasce do cadastro. A `0009` remove a `veste-bem` herdada de bancos antigos, só se não tiver dona nem entradas na fila (se tiver entradas, mantém e avisa no log do PHP). A `0010` cria `contas.confirmar_ate` (o prazo para confirmar o e-mail) e dá às contas não confirmadas que já existiam **14 dias a partir da migração**; as confirmadas ficam sem prazo. É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
+Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e não insere nenhuma loja: em banco novo, cada loja nasce do cadastro. A `0009` remove a `veste-bem` herdada de bancos antigos, só se não tiver dona nem entradas na fila (se tiver entradas, mantém e avisa no log do PHP). A `0010` cria `contas.confirmar_ate` (o prazo para confirmar o e-mail) e dá às contas não confirmadas que já existiam **14 dias a partir da migração**; as confirmadas ficam sem prazo. A `0011` cria `estabelecimentos.avatar_cor` e `estabelecimentos.avatar_icone` (o avatar da loja), nulas em todas as lojas. É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
 
 > No MySQL, comandos de criação de tabela não são transacionais. Se uma migração falhar no meio, confira a tabela `migrations` e o que foi criado antes de rodar de novo.
 
@@ -97,7 +97,7 @@ Todas as respostas são JSON. Erros têm o formato `{"erro": "mensagem"}`. Exemp
 ```bash
 curl -X POST http://localhost:8080/api/contas -H 'Content-Type: application/json' \
   -d '{"email": "contato@modaazul.com", "cnpj": "93.339.970/0001-05", "nome": "Moda Azul", "senha": "senha-segura-1"}'
-# {"token":"3f9c...","expira_em":"2026-10-11 12:00:00","conta":{"email":"contato@modaazul.com","cnpj":"93339970000105","email_confirmado":false,"confirmar_ate":"2026-10-18 12:00:00"},"loja":{"nome":"Moda Azul","slug":"moda-azul","endereco_publico":null}}
+# {"token":"3f9c...","expira_em":"2026-10-11 12:00:00","conta":{"email":"contato@modaazul.com","cnpj":"93339970000105","email_confirmado":false,"confirmar_ate":"2026-10-18 12:00:00"},"loja":{"nome":"Moda Azul","slug":"moda-azul","endereco_publico":null,"avatar":null}}
 ```
 
 **Entrar** (público): devolve um `token` novo (cada aparelho tem o seu). O token vale 7 dias, é mostrado só nesta resposta (o servidor guarda apenas o hash) e é enviado nas rotas protegidas no cabeçalho `Authorization: Bearer <token>`. Credencial errada é sempre `401` com a mesma mensagem; depois de muitos erros, `429` (ver [Limite de tentativas](#limite-de-tentativas)).
@@ -146,11 +146,11 @@ curl -X PUT http://localhost:8080/api/conta/senha -H "Authorization: Bearer $TOK
 curl -X DELETE http://localhost:8080/api/sessao -H "Authorization: Bearer $TOKEN"   # 204
 ```
 
-**Dados da loja** (público): nome, slug e o endereço público configurado (`null` se ainda não houver). O front usa isso para montar o link do QRCode.
+**Dados da loja** (público): nome, slug, o endereço público configurado (`null` se ainda não houver) e o `avatar` (`null` ou `{"cor", "icone"}`, ver abaixo). O front usa isso para montar o link do QRCode. A loja tem esse mesmo formato em todas as respostas que a trazem (cadastro, login, `GET /api/conta`, endereço e avatar).
 
 ```bash
 curl http://localhost:8080/api/filas/veste-bem
-# {"nome":"Veste Bem","slug":"veste-bem","endereco_publico":null}
+# {"nome":"Veste Bem","slug":"veste-bem","endereco_publico":null,"avatar":null}
 ```
 
 **Definir o endereço público da loja** (dashboard, exige `Authorization` e que a loja seja da sua conta). Aceita só a **origem** do site (`http`/`https`, host, porta opcional; sem usuário, caminho, query ou fragmento). É normalizado para minúsculas e sem barra final. `null` ou `""` apaga o endereço; o campo ausente é `422`.
@@ -159,7 +159,16 @@ curl http://localhost:8080/api/filas/veste-bem
 curl -X PUT http://localhost:8080/api/filas/moda-azul/endereco \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"endereco_publico": "https://Loja.Exemplo.com/"}'
-# {"nome":"Moda Azul","slug":"moda-azul","endereco_publico":"https://loja.exemplo.com"}
+# {"nome":"Moda Azul","slug":"moda-azul","endereco_publico":"https://loja.exemplo.com","avatar":null}
+```
+
+**Definir o avatar da loja** (dashboard, exige `Authorization` e que a loja seja da sua conta). O avatar é uma cor e um ícone de listas fixas, que o dashboard mostra na barra lateral no lugar da inicial da loja. Cores: `roxo`, `azul`, `verde`, `laranja`, `vermelho`, `cinza`. Ícones: `loja`, `mercado`, `restaurante`, `cafe`, `farmacia`, `beleza`. `{"cor": null, "icone": null}` apaga o avatar (volta à inicial). Qualquer outro corpo (valor fora da lista ou com maiúsculas, só um dos campos, um `null` e o outro não) é `422` com "Escolha uma cor e um ícone da lista." e o avatar anterior fica. Não há envio de imagem.
+
+```bash
+curl -X PUT http://localhost:8080/api/filas/moda-azul/avatar \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"cor": "verde", "icone": "restaurante"}'
+# {"nome":"Moda Azul","slug":"moda-azul","endereco_publico":null,"avatar":{"cor":"verde","icone":"restaurante"}}
 ```
 
 **Entrar na fila** (público): `201` com a nova entrada, ou `200` com a entrada existente se o telefone já estiver na fila.
@@ -248,10 +257,10 @@ server/
   public/            front controller (index.php) e .htaccess para Apache
   api/config.php     lê as variáveis de ambiente e devolve um array
   app/controllers/   ClienteController, DashboardController, LojaController, ContaController e SessaoController
-  app/services/      FilaService, LojaService, ContaService (cadastro, troca de senha), ExclusaoDeConta (apaga a conta com a loja e tudo o que é dela), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
+  app/services/      FilaService, LojaService (dados, endereço e avatar da loja), ContaService (cadastro, troca de senha), ExclusaoDeConta (apaga a conta com a loja e tudo o que é dela), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
   app/models/        Estabelecimento, EntradaFila, Conta e Sessao
   app/middleware/    Cors, Autenticacao (token) e LojaDaConta (posse da loja)
-  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, LojaDeDemonstracao, Json
+  app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, LojaDeDemonstracao, Avatar (cores e ícones aceitos), Json
   database/migrations/
   bin/migrate        runner de migrações
   bin/seed-demo      cria a loja de demonstração `veste-bem` (desenvolvimento)

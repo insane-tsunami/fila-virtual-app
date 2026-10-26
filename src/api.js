@@ -79,6 +79,15 @@ export const definirEndereco = (slug, endereco, token) =>
     token
   );
 
+// `cor` e `icone` com os nomes das listas, ou os dois null para voltar à inicial.
+export const definirAvatar = (slug, cor, icone, token) =>
+  requisitar(
+    'PUT',
+    `/api/filas/${slugUrl(slug)}/avatar`,
+    { cor, icone },
+    token
+  );
+
 export const cadastrar = ({ email, cnpj, nome, senha }) =>
   requisitar('POST', '/api/contas', { email, cnpj, nome, senha });
 

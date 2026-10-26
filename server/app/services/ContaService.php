@@ -43,7 +43,7 @@ final class ContaService
      * o e-mail ou o CNPJ são apagadas na mesma transação (ver `liberarEmailECnpj`).
      *
      * @param array<mixed> $corpo
-     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
+     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}}
      */
     public function cadastrar(array $corpo, string $ip = IpDoCliente::DESCONHECIDO): array
     {
@@ -107,7 +107,7 @@ final class ContaService
         return $resposta;
     }
 
-    /** @return array{conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}} */
+    /** @return array{conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}} */
     public function dados(int $contaId): array
     {
         $conta = Conta::query()->find($contaId) ?? throw new NaoEncontradoException('Conta não encontrada.');
@@ -116,11 +116,7 @@ final class ContaService
 
         return [
             'conta' => $conta->paraResposta(),
-            'loja' => [
-                'nome' => $loja->nome,
-                'slug' => $loja->slug,
-                'endereco_publico' => $loja->endereco_publico,
-            ],
+            'loja' => $loja->paraResposta(),
         ];
     }
 
