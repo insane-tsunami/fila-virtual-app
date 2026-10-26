@@ -30,7 +30,7 @@ final class StoreAddressApiTest extends ApiTestCase
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame(
-            ['nome' => 'Veste Bem', 'slug' => 'veste-bem', 'endereco_publico' => null],
+            ['nome' => 'Veste Bem', 'slug' => 'veste-bem', 'endereco_publico' => null, 'avatar' => null],
             $this->json($resposta)
         );
         $this->assertStringContainsString('"endereco_publico":null', (string) $resposta->getBody());
@@ -66,7 +66,7 @@ final class StoreAddressApiTest extends ApiTestCase
 
         $this->assertSame(200, $resposta->getStatusCode());
         $this->assertSame(
-            ['nome' => 'Veste Bem', 'slug' => 'veste-bem', 'endereco_publico' => 'https://loja.exemplo.com'],
+            ['nome' => 'Veste Bem', 'slug' => 'veste-bem', 'endereco_publico' => 'https://loja.exemplo.com', 'avatar' => null],
             $this->json($resposta)
         );
         $this->assertSame(

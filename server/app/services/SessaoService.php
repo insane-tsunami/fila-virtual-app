@@ -24,7 +24,7 @@ final class SessaoService
     }
 
     /**
-     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
+     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}}
      */
     public function entrar(mixed $email, mixed $senha, string $ip = IpDoCliente::DESCONHECIDO): array
     {
@@ -73,7 +73,7 @@ final class SessaoService
     /**
      * Abre uma sessão para a conta e devolve o token (único momento em que ele existe em claro).
      *
-     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null}}
+     * @return array{token: string, expira_em: string, conta: array{email: string, cnpj: string, email_confirmado: bool, confirmar_ate: string|null}, loja: array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}}
      */
     public function abrir(Conta $conta): array
     {
@@ -95,11 +95,7 @@ final class SessaoService
             'token' => $token,
             'expira_em' => $expiraEm,
             'conta' => $conta->paraResposta(),
-            'loja' => [
-                'nome' => $loja->nome,
-                'slug' => $loja->slug,
-                'endereco_publico' => $loja->endereco_publico,
-            ],
+            'loja' => $loja->paraResposta(),
         ];
     }
 

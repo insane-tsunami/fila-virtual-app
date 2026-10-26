@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Services;
 
 use Models\Estabelecimento;
+use Support\Avatar;
 use Support\EnderecoPublico;
 
-/** Dados públicos da loja e o seu endereço público configurável. */
+/** Dados públicos da loja, o seu endereço público configurável e o avatar. */
 final class LojaService
 {
-    /** @return array{nome: string, slug: string, endereco_publico: string|null} */
+    /** @return array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null} */
     public function dados(string $slug): array
     {
         return $this->resumo($this->estabelecimento($slug));
@@ -21,7 +22,7 @@ final class LojaService
      * o campo ausente é um erro, para um corpo malformado nunca limpar o endereço.
      *
      * @param array<mixed> $corpo
-     * @return array{nome: string, slug: string, endereco_publico: string|null}
+     * @return array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}
      */
     public function definirEndereco(string $slug, array $corpo): array
     {
@@ -48,14 +49,30 @@ final class LojaService
         return $this->resumo($estabelecimento);
     }
 
-    /** @return array{nome: string, slug: string, endereco_publico: string|null} */
+    /**
+     * Define o avatar da loja (cor e ícone das listas fixas) ou o apaga com as duas partes nulas.
+     * Qualquer outro corpo é 422 e o avatar anterior fica.
+     *
+     * @param array<mixed> $corpo
+     * @return array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null}
+     */
+    public function definirAvatar(string $slug, array $corpo): array
+    {
+        $estabelecimento = $this->estabelecimento($slug);
+
+        if (!Avatar::corpoValido($corpo)) {
+            throw new DadosInvalidosException(Avatar::MENSAGEM_INVALIDA);
+        }
+
+        $estabelecimento->update(['avatar_cor' => $corpo['cor'], 'avatar_icone' => $corpo['icone']]);
+
+        return $this->resumo($estabelecimento);
+    }
+
+    /** @return array{nome: string, slug: string, endereco_publico: string|null, avatar: array{cor: string, icone: string}|null} */
     private function resumo(Estabelecimento $estabelecimento): array
     {
-        return [
-            'nome' => $estabelecimento->nome,
-            'slug' => $estabelecimento->slug,
-            'endereco_publico' => $estabelecimento->endereco_publico,
-        ];
+        return $estabelecimento->paraResposta();
     }
 
     private function estabelecimento(string $slug): Estabelecimento

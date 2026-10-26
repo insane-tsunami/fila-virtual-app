@@ -1,6 +1,6 @@
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 
 import Dashboard from '.';
 import QrCode from './Qrcode';
@@ -22,12 +22,13 @@ const paginas = [
   ['Perfil', Perfil],
 ];
 
-function renderPagina(Pagina, nome) {
-  return render(
+// Só a barra lateral: o Perfil também mostra o avatar na pré-visualização.
+function renderPagina(Pagina, nome, avatar = null) {
+  const u = render(
     <MemoryRouter>
       <SessaoDeTeste
         valor={{
-          loja: { nome, slug: 'qualquer', endereco_publico: null },
+          loja: { nome, slug: 'qualquer', endereco_publico: null, avatar },
           conta: { email: 'a@exemplo.com', cnpj: '93339970000105' },
         }}
       >
@@ -35,6 +36,10 @@ function renderPagina(Pagina, nome) {
       </SessaoDeTeste>
     </MemoryRouter>
   );
+  return {
+    ...within(u.getByRole('complementary', { name: 'Barra lateral' })),
+    unmount: u.unmount,
+  };
 }
 
 describe.each(paginas)('Barra lateral: %s', (_, Pagina) => {
@@ -44,6 +49,21 @@ describe.each(paginas)('Barra lateral: %s', (_, Pagina) => {
     expect(u.getByText('moda azul')).toBeInTheDocument();
     expect(u.getByText('M')).toBeInTheDocument();
     expect(u.getByText('Sair')).toBeInTheDocument();
+  });
+
+  it('com avatar mostra o ícone sobre a cor no lugar da inicial', () => {
+    const u = renderPagina(Pagina, 'Moda Azul', { cor: 'azul', icone: 'cafe' });
+
+    expect(u.getByText('Moda Azul')).toBeInTheDocument();
+    expect(u.getByTitle('Avatar: Café sobre Azul')).toBeInTheDocument();
+    expect(u.queryByText('M')).not.toBeInTheDocument();
+  });
+
+  it('com avatar desconhecido mostra a inicial, sem quebrar', () => {
+    const u = renderPagina(Pagina, 'Moda Azul', { cor: 'rosa', icone: 'cafe' });
+
+    expect(u.getByText('M')).toBeInTheDocument();
+    expect(u.queryByTitle(/Avatar:/)).not.toBeInTheDocument();
   });
 
   it('lojas diferentes mostram nomes e iniciais diferentes', () => {

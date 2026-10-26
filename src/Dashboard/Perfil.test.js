@@ -4,7 +4,7 @@ import { render, fireEvent, act, within } from '@testing-library/react';
 
 import Perfil from './Perfil';
 import SessaoDeTeste from '../sessao/SessaoDeTeste';
-import { ApiError, trocarEmail, trocarSenha } from '../api';
+import { ApiError, definirAvatar, trocarEmail, trocarSenha } from '../api';
 
 jest.mock('../api', () => {
   class ApiErrorMock extends Error {
@@ -17,6 +17,7 @@ jest.mock('../api', () => {
     ApiError: ApiErrorMock,
     trocarSenha: jest.fn(),
     trocarEmail: jest.fn(),
+    definirAvatar: jest.fn(),
     reenviarConfirmacao: jest.fn(),
   };
 });
@@ -61,6 +62,7 @@ async function atualizar(u) {
 }
 
 beforeEach(() => {
+  definirAvatar.mockReset();
   trocarSenha.mockReset();
   trocarEmail.mockReset();
   expirar.mockReset();
@@ -90,7 +92,7 @@ describe('Configurações do estabelecimento', () => {
     expect(getByLabelText('CNPJ').value).toBe('123');
   });
 
-  it('oferece os três campos de senha mascarados e "Atualizar", sem seletor de avatar', () => {
+  it('oferece os três campos de senha mascarados e "Atualizar"', () => {
     const {
       getByLabelText,
       getByText,
@@ -102,7 +104,7 @@ describe('Configurações do estabelecimento', () => {
       expect(getByLabelText(rotulo)).toHaveAttribute('type', 'password')
     );
     expect(getByText('Atualizar')).toBeInTheDocument();
-    expect(queryByText(/Avatar/i)).not.toBeInTheDocument();
+    expect(queryByText('Avatar da loja')).toBeInTheDocument();
     expect(container.querySelector('input[type="file"]')).toBeNull();
   });
 
@@ -348,5 +350,169 @@ describe('E-mail da conta no Perfil', () => {
     expect(formulario(u).getByLabelText('Senha atual').value).toBe(
       'senha-atual-1'
     );
+  });
+});
+
+const LOJA = {
+  nome: 'Moda Azul',
+  slug: 'moda-azul',
+  endereco_publico: null,
+  avatar: null,
+};
+
+// Sessão com a loja em estado: `atualizarLoja` troca a loja como o SessaoProvider faz, e a barra
+// lateral (renderizada pelo Perfil) mostra o resultado.
+// eslint-disable-next-line react/prop-types
+function PerfilComLoja({ lojaInicial }) {
+  const [loja, setLoja] = React.useState(lojaInicial);
+  return (
+    <MemoryRouter>
+      <SessaoDeTeste
+        valor={{
+          token: 'tok',
+          expirar,
+          loja,
+          atualizarLoja: setLoja,
+          conta: {
+            email: 'contato@modaazul.com',
+            cnpj: '93339970000105',
+            email_confirmado: true,
+          },
+        }}
+      >
+        <Perfil />
+      </SessaoDeTeste>
+    </MemoryRouter>
+  );
+}
+
+const renderComLoja = (loja = LOJA) =>
+  render(<PerfilComLoja lojaInicial={loja} />);
+
+const secao = (u) => within(u.getByRole('form', { name: 'Avatar da loja' }));
+
+async function salvarAvatar(u) {
+  await act(async () => {
+    fireEvent.submit(u.getByRole('form', { name: 'Avatar da loja' }));
+  });
+}
+
+function escolher(u, cor, icone) {
+  if (cor) fireEvent.click(u.getByLabelText(cor));
+  if (icone) fireEvent.click(u.getByLabelText(icone));
+}
+
+describe('Avatar da loja no Perfil', () => {
+  it('loja sem avatar: a inicial, nada marcado, sem "Usar a inicial" nem envio de arquivo', () => {
+    const u = renderComLoja();
+    const s = secao(u);
+
+    expect(s.getByText('Avatar da loja')).toBeInTheDocument();
+    expect(s.getByText('M')).toBeInTheDocument();
+    expect(u.getAllByRole('radio')).toHaveLength(12);
+    u.getAllByRole('radio').forEach((r) => expect(r).not.toBeChecked());
+    expect(u.queryByText('Usar a inicial')).not.toBeInTheDocument();
+    expect(u.container.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it('loja com avatar: a escolha atual vem marcada e "Usar a inicial" aparece', () => {
+    const u = renderComLoja({
+      ...LOJA,
+      avatar: { cor: 'azul', icone: 'cafe' },
+    });
+
+    expect(u.getByLabelText('Azul')).toBeChecked();
+    expect(u.getByLabelText('Café')).toBeChecked();
+    expect(u.getByText('Usar a inicial')).toBeInTheDocument();
+  });
+
+  it('salvar: envia slug, cor, ícone e token, avisa e a barra lateral muda na hora', async () => {
+    definirAvatar.mockResolvedValue({
+      ...LOJA,
+      avatar: { cor: 'verde', icone: 'restaurante' },
+    });
+    const u = renderComLoja();
+
+    escolher(u, 'Verde', 'Restaurante');
+    expect(u.getAllByTitle('Avatar: Restaurante sobre Verde')).toHaveLength(1);
+    await salvarAvatar(u);
+
+    expect(definirAvatar).toHaveBeenCalledWith(
+      'moda-azul',
+      'verde',
+      'restaurante',
+      'tok'
+    );
+    expect(u.getByText('Avatar salvo.')).toBeInTheDocument();
+    expect(u.getAllByTitle('Avatar: Restaurante sobre Verde')).toHaveLength(2);
+    expect(u.getByText('Usar a inicial')).toBeInTheDocument();
+  });
+
+  it('escolha incompleta: "Salvar avatar" desativado e nenhuma requisição', async () => {
+    const u = renderComLoja();
+
+    expect(u.getByText('Salvar avatar').closest('button')).toBeDisabled();
+    escolher(u, 'Verde');
+    expect(u.getByText('Salvar avatar').closest('button')).toBeDisabled();
+    await salvarAvatar(u);
+
+    expect(definirAvatar).not.toHaveBeenCalled();
+  });
+
+  it('"Usar a inicial": envia os dois nulos, avisa e a barra volta à inicial', async () => {
+    definirAvatar.mockResolvedValue(LOJA);
+    const u = renderComLoja({
+      ...LOJA,
+      avatar: { cor: 'azul', icone: 'cafe' },
+    });
+
+    await act(async () => {
+      fireEvent.click(u.getByText('Usar a inicial'));
+    });
+
+    expect(definirAvatar).toHaveBeenCalledWith('moda-azul', null, null, 'tok');
+    expect(u.getByText('Avatar removido.')).toBeInTheDocument();
+    expect(u.queryByTitle(/Avatar:/)).not.toBeInTheDocument();
+    expect(u.getAllByText('M')).toHaveLength(2);
+    expect(u.queryByText('Usar a inicial')).not.toBeInTheDocument();
+  });
+
+  it('422: mostra a mensagem, mantém a escolha e a barra não muda', async () => {
+    definirAvatar.mockRejectedValue(
+      new ApiError(422, 'Escolha uma cor e um ícone da lista.')
+    );
+    const u = renderComLoja();
+
+    escolher(u, 'Verde', 'Restaurante');
+    await salvarAvatar(u);
+
+    expect(
+      u.getByText('Escolha uma cor e um ícone da lista.')
+    ).toBeInTheDocument();
+    expect(u.getByLabelText('Verde')).toBeChecked();
+    expect(u.getAllByTitle('Avatar: Restaurante sobre Verde')).toHaveLength(1);
+    expect(expirar).not.toHaveBeenCalled();
+  });
+
+  it('401 (sessão inválida): expira a sessão', async () => {
+    definirAvatar.mockRejectedValue(new ApiError(401, 'Sessão inválida.'));
+    const u = renderComLoja();
+
+    escolher(u, 'Roxo', 'Loja');
+    await salvarAvatar(u);
+
+    expect(expirar).toHaveBeenCalled();
+  });
+
+  it('API fora do ar: mensagem fixa e a escolha fica', async () => {
+    definirAvatar.mockRejectedValue(new ApiError(0, 'Failed to fetch'));
+    const u = renderComLoja();
+
+    escolher(u, 'Cinza', 'Beleza');
+    await salvarAvatar(u);
+
+    expect(u.getByText(REDE)).toBeInTheDocument();
+    expect(u.getByLabelText('Cinza')).toBeChecked();
+    expect(u.getByLabelText('Beleza')).toBeChecked();
   });
 });

@@ -41,7 +41,7 @@ final class AccountApiTest extends ApiTestCase
         ], $corpo['conta']);
         $this->assertNotNull($corpo['conta']['confirmar_ate']);
         $this->assertSame(
-            ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
+            ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null, 'avatar' => null],
             $corpo['loja']
         );
         $this->assertSame(1, $this->contas());
@@ -80,7 +80,7 @@ final class AccountApiTest extends ApiTestCase
 
         $publico = $this->json($this->chamar('GET', '/api/filas/moda-azul'));
 
-        $this->assertSame(['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null], $publico);
+        $this->assertSame(['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null, 'avatar' => null], $publico);
     }
 
     // --- Validação ------------------------------------------------------------------------
@@ -300,7 +300,7 @@ final class AccountApiTest extends ApiTestCase
                 'email' => 'a@exemplo.com', 'cnpj' => '93339970000105', 'email_confirmado' => false,
                 'confirmar_ate' => $this->db->table('contas')->value('confirmar_ate'),
             ],
-            'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null],
+            'loja' => ['nome' => 'Moda Azul', 'slug' => 'moda-azul', 'endereco_publico' => null, 'avatar' => null],
         ], $this->json($resposta));
     }
 

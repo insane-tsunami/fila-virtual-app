@@ -9,6 +9,7 @@ import { Wrapper, Container, Content, Painel } from './styles';
 
 import BarraLateral from './BarraLateral';
 import AvisoEmail from './AvisoEmail';
+import EscolherAvatar from './EscolherAvatar';
 import { trocarEmail, trocarSenha } from '../api';
 import { useSessao } from '../sessao/SessaoProvider';
 
@@ -262,6 +263,7 @@ export default function Perfil() {
                 </Button>
               </form>
             )}
+            <EscolherAvatar />
           </Painel>
         </Content>
       </Container>

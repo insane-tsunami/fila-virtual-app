@@ -15,6 +15,7 @@ export const LOJA_DE_TESTE = {
   nome: 'Moda Azul',
   slug: 'moda-azul',
   endereco_publico: null,
+  avatar: null,
 };
 
 // Sessão pronta para os testes das páginas do dashboard (sem passar pela API).
