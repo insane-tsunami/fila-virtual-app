@@ -201,6 +201,28 @@ describe('Continuar depois de fechar a página', () => {
     ).toBeInTheDocument();
     expect(window.localStorage.getItem(CHAVE)).toBeNull();
   });
+
+  it('reabre com o código de uma entrada cancelada e não começa a consultar', async () => {
+    window.localStorage.setItem(CHAVE, 'abc');
+    consultarEntrada.mockResolvedValue({
+      codigo: 'abc',
+      posicao: null,
+      status: 'cancelado',
+    });
+    jest.useFakeTimers();
+    const u = renderCliente();
+    for (let i = 0; i < 5; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {});
+    }
+
+    expect(u.getByText('Entrada encerrada')).toBeInTheDocument();
+    await act(async () => {
+      jest.advanceTimersByTime(30000);
+    });
+    expect(consultarEntrada).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(CHAVE)).toBe('abc');
+  });
 });
 
 describe('Acompanhamento automático', () => {
@@ -300,6 +322,26 @@ describe('Acompanhamento automático', () => {
     await wait(() =>
       expect(u.getByText('Atendimento finalizado')).toBeInTheDocument()
     );
+    await avancar(30000);
+    expect(consultarEntrada).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(u.getByText('Entrar na fila de novo'));
+    expect(u.getByLabelText('Seu telefone (com DDD)')).toBeInTheDocument();
+    expect(window.localStorage.getItem(CHAVE)).toBeNull();
+  });
+
+  it('cancelado: mostra "Entrada encerrada", para de consultar e permite entrar de novo', async () => {
+    const u = await entrarComRelogio([
+      { codigo: 'abc', posicao: null, status: 'cancelado' },
+    ]);
+
+    await avancar(5000);
+    await wait(() =>
+      expect(u.getByText('Entrada encerrada')).toBeInTheDocument()
+    );
+    expect(
+      u.getByText('Sua entrada foi encerrada sem atendimento.')
+    ).toBeInTheDocument();
     await avancar(30000);
     expect(consultarEntrada).toHaveBeenCalledTimes(1);
 

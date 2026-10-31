@@ -2,6 +2,8 @@
 
 Backend PHP do ZeraFilas: a API que o cliente usa para entrar na fila virtual e que o dashboard do estabelecimento usa para ver e avançar a fila. Cada estabelecimento tem a sua **conta** (e-mail e senha) e só enxerga e mexe na própria loja; o cliente da fila não precisa de conta. Veja [Segurança e pendências](#segurança-e-pendências).
 
+> Instruções para agentes de código deste repositório: [`../AGENTS.md`](../AGENTS.md).
+
 ## Requisitos
 
 - PHP **8.3 ou mais novo**, com as extensões `pdo_sqlite` (testes) e `pdo_mysql` (produção)
@@ -43,8 +45,10 @@ A configuração vem de **variáveis de ambiente** (o PHP não lê o `.env` sozi
 | `RATE_LIMIT_CONFIRMACAO_JANELA_MIN` | Janela, em minutos, do limite acima | `60` |
 | `RATE_LIMIT_CONFIRMAR_IP` | Tokens inválidos na confirmação por IP que bloqueiam o IP na janela de `RATE_LIMIT_JANELA_MIN` | `20` |
 | `RATE_LIMIT_REDEFINIR_IP` | Tokens inválidos na redefinição por IP que bloqueiam o IP na janela de `RATE_LIMIT_JANELA_MIN` | `20` |
+| `RETENCAO_ENTRADA_ATIVA_HORAS` | Horas sem mudança de estado (entrada na fila ou início do atendimento) até o `php bin/limpar` encerrar como `cancelado` uma entrada ativa esquecida | `24` |
+| `RETENCAO_TELEFONE_DIAS` | Dias desde o encerramento até o `php bin/limpar` apagar o telefone de uma entrada `finalizado` ou `cancelado` | `30` |
 
-Os `RATE_LIMIT_*` aceitam só inteiros positivos; qualquer outro valor (vazio, `0`, negativo, texto) é ignorado e vale o padrão.
+Os `RATE_LIMIT_*` e os `RETENCAO_*` aceitam só inteiros positivos; qualquer outro valor (vazio, `0`, negativo, texto) é ignorado e vale o padrão.
 
 Nunca commite valores reais de banco. (A antiga variável `API_KEY` não existe mais: o dashboard passa a usar login por conta. Se ela ainda estiver no ambiente, é ignorada.)
 
@@ -54,9 +58,26 @@ Nunca commite valores reais de banco. (A antiga variável `API_KEY` não existe 
 php bin/migrate        # ou: composer migrate
 ```
 
-Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e não insere nenhuma loja: em banco novo, cada loja nasce do cadastro. A `0009` remove a `veste-bem` herdada de bancos antigos, só se não tiver dona nem entradas na fila (se tiver entradas, mantém e avisa no log do PHP). A `0010` cria `contas.confirmar_ate` (o prazo para confirmar o e-mail) e dá às contas não confirmadas que já existiam **14 dias a partir da migração**; as confirmadas ficam sem prazo. A `0011` cria `estabelecimentos.avatar_cor` e `estabelecimentos.avatar_icone` (o avatar da loja), nulas em todas as lojas. É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
+Cria as tabelas `estabelecimentos` (com o `endereco_publico` de cada loja, opcional), `entradas_fila`, `contas`, `sessoes`, `limites_tentativas` (contadores do limite de tentativas) e `redefinicoes_senha` (tokens do "esqueci a senha") e `confirmacoes_email` (tokens da confirmação do e-mail, mais a coluna `contas.email_confirmado_em`) e não insere nenhuma loja: em banco novo, cada loja nasce do cadastro. A `0009` remove a `veste-bem` herdada de bancos antigos, só se não tiver dona nem entradas na fila (se tiver entradas, mantém e avisa no log do PHP). A `0010` cria `contas.confirmar_ate` (o prazo para confirmar o e-mail) e dá às contas não confirmadas que já existiam **14 dias a partir da migração**; as confirmadas ficam sem prazo. A `0011` cria `estabelecimentos.avatar_cor` e `estabelecimentos.avatar_icone` (o avatar da loja), nulas em todas as lojas. A `0012` torna `entradas_fila.telefone` anulável (o `php bin/limpar` apaga o número das entradas encerradas antigas) e cria um índice em `finalizou_em`; as entradas que já existiam mantêm o telefone. É idempotente: rodar de novo responde "Nada a migrar". As migrações executadas ficam na tabela `migrations`.
 
 > No MySQL, comandos de criação de tabela não são transacionais. Se uma migração falhar no meio, confira a tabela `migrations` e o que foi criado antes de rodar de novo.
+
+## Retenção de dados
+
+```bash
+php bin/limpar        # ou: composer limpar
+```
+
+Comando idempotente, feito para rodar por cron (ver [Hospedagem](#hospedagem)). Cada execução:
+
+- encerra como `cancelado` as entradas ativas paradas há mais de `RETENCAO_ENTRADA_ATIVA_HORAS` (padrão 24). O prazo conta da última mudança de estado (`entrou_em` para quem aguarda, `iniciou_em` para quem está em atendimento), loja a loja, com a mesma trava de `entrar` e `finalizar`; se a loja ficar sem ninguém em atendimento, a ativa mais antiga é promovida;
+- apaga o telefone (fica `null`) das entradas `finalizado` ou `cancelado` encerradas há mais de `RETENCAO_TELEFONE_DIAS` (padrão 30). Código, status e datas continuam;
+- remove sessões, tokens de redefinição de senha e de confirmação de e-mail vencidos e contadores de tentativas vencidos;
+- imprime quantas linhas mudou e sai com `0`. Com migração pendente, sai com `1` e manda rodar `php bin/migrate` antes, sem mexer em nada.
+
+**Nada é limpo sem o cron.** A aplicação não executa essas regras dentro das requisições: sem o agendamento, as entradas esquecidas ficam na fila e os telefones ficam no banco indefinidamente.
+
+A entrada encerrada pela retenção (`cancelado`) não aparece no dashboard, que só lista as ativas. Na página pública o cliente vê "Entrada encerrada" e pode entrar na fila de novo com o mesmo telefone.
 
 ## Rodar localmente
 
@@ -256,20 +277,27 @@ done
 server/
   public/            front controller (index.php) e .htaccess para Apache
   api/config.php     lê as variáveis de ambiente e devolve um array
-  app/controllers/   ClienteController, DashboardController, LojaController, ContaController e SessaoController
-  app/services/      FilaService, LojaService (dados, endereço e avatar da loja), ContaService (cadastro, troca de senha), ExclusaoDeConta (apaga a conta com a loja e tudo o que é dela), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
+  app/controllers/   ClienteController, DashboardController, LojaController, ContaController, SessaoController, RecuperacaoSenhaController e ConfirmacaoEmailController
+  app/services/      FilaService, LojaService (dados, endereço e avatar da loja), ContaService (cadastro, troca de senha), ExclusaoDeConta (apaga a conta com a loja e tudo o que é dela), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), RetencaoDeDados (limpeza das entradas, telefones, sessões, tokens e contadores vencidos), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
   app/models/        Estabelecimento, EntradaFila, Conta e Sessao
   app/middleware/    Cors, Autenticacao (token) e LojaDaConta (posse da loja)
   app/support/       Aplicacao (rotas e erros), Database, Migrator, Telefone, EnderecoPublico, Email, Cnpj, Slug, Senha, IpDoCliente, LojaDeDemonstracao, Avatar (cores e ícones aceitos), Json
   database/migrations/
   bin/migrate        runner de migrações
   bin/seed-demo      cria a loja de demonstração `veste-bem` (desenvolvimento)
+  bin/limpar         aplica a retenção de dados (rodar por cron)
   tests/
 ```
 
 ## Hospedagem
 
 A hospedagem ainda não foi definida. O código não depende de nenhum provedor: serve qualquer hospedagem com PHP 8.3+ e MySQL, apontando a raiz do site para `public/`, definindo as variáveis de ambiente e rodando `php bin/migrate` a cada deploy. Em Apache, o `public/.htaccess` já direciona tudo ao front controller.
+
+**Agende o `php bin/limpar` (retenção de dados).** A aplicação não limpa sozinha: sem o cron, as entradas esquecidas ficam na fila e os telefones das entradas encerradas ficam no banco além do prazo. De hora em hora basta (mais frequente não muda o resultado; mais raro só atrasa o encerramento e o apagamento). Exemplo de crontab, com o caminho do `server/`:
+
+```cron
+0 * * * * cd /caminho/para/server && php bin/limpar >/dev/null
+```
 
 **Atrás de proxy ou CDN, configure `TRUSTED_PROXIES`.** Sem isso a API usa o endereço da conexão, que atrás de um proxy é o do próprio proxy: todos os usuários parecem o mesmo IP, o limite de tentativas por IP passa a valer para o site inteiro e o limite de login por e-mail+IP vira um limite por e-mail de 5 erros, com que qualquer um volta a trancar a dona fora do painel. Liste só os proxies que você controla: um endereço na lista é confiado para dizer quem é o cliente. Sem proxy, deixe vazia.
 
@@ -281,4 +309,4 @@ A hospedagem ainda não foi definida. O código não depende de nenhum provedor:
 - **A loja `veste-bem` é só uma demonstração:** sem dona, serve a página pública da fila mas ninguém a acessa pelo dashboard. Ela não existe em banco novo; só `php bin/seed-demo` a cria (em MySQL exige `--forcar`). A migração `0009` a remove de bancos antigos se estiver sem dona e sem entradas.
 - **O dígito verificador só pega erro de digitação:** não prova que o CNPJ é de quem se cadastra (isso depende de consulta à Receita ou de confirmação de e-mail, que não existem).
 - **Qualquer pessoa pode entrar na fila com qualquer telefone:** não há limite de requisições nem confirmação de que o número é de quem o digitou. Isso precisa ser resolvido antes de existirem notificações.
-- **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A política de retenção do histórico ainda não foi definida.
+- **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A retenção (`php bin/limpar`) apaga o telefone das entradas `finalizado` ou `cancelado` 30 dias depois do encerramento (`RETENCAO_TELEFONE_DIAS`) e encerra as ativas paradas há 24 h (`RETENCAO_ENTRADA_ATIVA_HORAS`); isso depende de a hospedagem agendar o comando (ver [Hospedagem](#hospedagem)). Os backups e os logs do servidor ainda guardam os números por conta própria: a política deles fica com a hospedagem.

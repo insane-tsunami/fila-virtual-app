@@ -49,6 +49,24 @@ final class Migrator
         return $executed;
     }
 
+    /**
+     * Migrações ainda não aplicadas, em ordem. Só lê: sem a tabela `migrations`
+     * (banco vazio) todas estão pendentes e nada é criado.
+     *
+     * @return list<string>
+     */
+    public function pendentes(): array
+    {
+        $files = array_keys($this->files());
+        if (!$this->db->schema()->hasTable('migrations')) {
+            return $files;
+        }
+
+        $done = $this->db->table('migrations')->pluck('migration')->all();
+
+        return array_values(array_filter($files, static fn (string $name): bool => !in_array($name, $done, true)));
+    }
+
     private function ensureMigrationsTable(): void
     {
         $schema = $this->db->schema();

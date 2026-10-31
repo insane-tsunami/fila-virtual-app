@@ -148,6 +148,53 @@ final class QueueIntakeApiTest extends ApiTestCase
         );
     }
 
+    public function testEntradaCanceladaTemStatusCanceladoEPosicaoNulaSemTelefone(): void
+    {
+        $entrada = $this->entrarPelaApi(1);
+        $this->cancelar($entrada['codigo']);
+
+        $resposta = $this->chamar('GET', self::ENTRADAS . '/' . $entrada['codigo']);
+        $corpo = $this->json($resposta);
+
+        $this->assertSame(200, $resposta->getStatusCode());
+        $this->assertSame('cancelado', $corpo['status']);
+        $this->assertNull($corpo['posicao']);
+        $this->assertArrayNotHasKey('telefone', $corpo);
+        $this->assertStringNotContainsString('8203', (string) $resposta->getBody());
+    }
+
+    public function testTelefoneDeEntradaCanceladaEntraDeNovoCom201(): void
+    {
+        $antiga = $this->entrarPelaApi(1);
+        $this->cancelar($antiga['codigo']);
+
+        $resposta = $this->chamar('POST', self::ENTRADAS, ['telefone' => '(11) 90001-0001']);
+
+        $this->assertSame(201, $resposta->getStatusCode());
+        $this->assertNotSame($antiga['codigo'], $this->json($resposta)['codigo']);
+    }
+
+    public function testConsultaDeEntradaCanceladaComTelefoneApagadoContinuaRespondendo(): void
+    {
+        $entrada = $this->entrarPelaApi(1);
+        $this->cancelar($entrada['codigo']);
+        EntradaFila::query()->where('codigo', $entrada['codigo'])->update(['telefone' => null]);
+
+        $resposta = $this->chamar('GET', self::ENTRADAS . '/' . $entrada['codigo']);
+
+        $this->assertSame(200, $resposta->getStatusCode());
+        $this->assertSame('cancelado', $this->json($resposta)['status']);
+    }
+
+    /** Marca a entrada como encerrada sem atendimento, como a retenção faz. */
+    private function cancelar(string $codigo): void
+    {
+        EntradaFila::query()->where('codigo', $codigo)->update([
+            'status' => EntradaFila::CANCELADO,
+            'finalizou_em' => gmdate('Y-m-d H:i:s'),
+        ]);
+    }
+
     public function testConsultaNaoTrazOTelefoneNemInteiroNemMascarado(): void
     {
         $entrada = $this->chamar('POST', self::ENTRADAS, ['telefone' => '(11) 97177-8203']);

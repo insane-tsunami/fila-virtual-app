@@ -32,7 +32,9 @@ export default function Cliente() {
     };
   }, []);
 
-  const finalizada = entrada && entrada.status === 'finalizado';
+  const encerrada =
+    entrada &&
+    (entrada.status === 'finalizado' || entrada.status === 'cancelado');
   const codigo = entrada ? entrada.codigo : null;
 
   // Carrega a loja e retoma a entrada guardada, se houver.
@@ -75,7 +77,7 @@ export default function Cliente() {
 
   // Acompanhamento: uma consulta por vez, a cada 5 s, enquanto ativa.
   useEffect(() => {
-    if (!codigo || finalizada) return undefined;
+    if (!codigo || encerrada) return undefined;
     let cancelado = false;
     let temporizador;
 
@@ -103,7 +105,7 @@ export default function Cliente() {
       cancelado = true;
       clearTimeout(temporizador);
     };
-  }, [slug, codigo, finalizada]);
+  }, [slug, codigo, encerrada]);
 
   const enviar = useCallback(
     async (evento) => {
@@ -141,10 +143,16 @@ export default function Cliente() {
     conteudo = <Typography>Loja não encontrada.</Typography>;
   } else if (erroCarga) {
     conteudo = <Typography role="alert">{erroCarga}</Typography>;
-  } else if (entrada && finalizada) {
+  } else if (entrada && encerrada) {
+    const cancelada = entrada.status === 'cancelado';
     conteudo = (
       <>
-        <Typography variant="h6">Atendimento finalizado</Typography>
+        <Typography variant="h6">
+          {cancelada ? 'Entrada encerrada' : 'Atendimento finalizado'}
+        </Typography>
+        {cancelada && (
+          <Typography>Sua entrada foi encerrada sem atendimento.</Typography>
+        )}
         <Button variant="contained" color="primary" onClick={entrarDeNovo}>
           Entrar na fila de novo
         </Button>

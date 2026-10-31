@@ -30,6 +30,7 @@ final class MigrationTest extends DatabaseTestCase
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
             '0011_add_avatar_to_estabelecimentos',
+            '0012_entradas_fila_telefone_anulavel',
         ], $executadas);
         $this->assertSame($executadas, $this->db->table('migrations')->orderBy('id')->pluck('migration')->all());
     }
@@ -126,6 +127,7 @@ final class MigrationTest extends DatabaseTestCase
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
             '0011_add_avatar_to_estabelecimentos',
+            '0012_entradas_fila_telefone_anulavel',
         ], $executadas);
         $conta = $this->db->table('contas')->where('email', 'antiga@exemplo.com')->first();
         $this->assertNull($conta->email_confirmado_em, 'sem anistia: a conta antiga não está confirmada');
@@ -248,6 +250,7 @@ final class MigrationTest extends DatabaseTestCase
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
             '0011_add_avatar_to_estabelecimentos',
+            '0012_entradas_fila_telefone_anulavel',
         ], $executadas);
         $loja = $this->db->table('estabelecimentos')->where('slug', 'loja-antiga')->first();
         $this->assertNull($loja->conta_id);
@@ -279,6 +282,7 @@ final class MigrationTest extends DatabaseTestCase
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
             '0011_add_avatar_to_estabelecimentos',
+            '0012_entradas_fila_telefone_anulavel',
         ], $executadas);
         $this->assertSame(
             ['outra-loja'],
@@ -360,6 +364,7 @@ final class MigrationTest extends DatabaseTestCase
             '0009_remove_estabelecimento_veste_bem_demonstracao',
             '0010_add_confirmar_ate_em_contas',
             '0011_add_avatar_to_estabelecimentos',
+            '0012_entradas_fila_telefone_anulavel',
         ], $executadas);
         $log = (string) file_get_contents($arquivo);
         unlink($arquivo);
@@ -492,5 +497,82 @@ final class MigrationTest extends DatabaseTestCase
         $this->assertNull($loja->avatar_cor);
         $this->assertNull($loja->avatar_icone);
         $this->limpar($dir);
+    }
+
+    // --- 0012: telefone anulável e índice de retenção -----------------------------------------
+
+    public function testDozeAceitaTelefoneNuloEMantemOIndiceDeFinalizouEm(): void
+    {
+        $this->migrate();
+        $loja = $this->criarEstabelecimento();
+        $id = $this->db->table('entradas_fila')->insertGetId([
+            'estabelecimento_id' => $loja, 'codigo' => 'abc', 'telefone' => null,
+            'status' => 'finalizado', 'entrou_em' => '2026-10-03 12:00:00',
+            'iniciou_em' => '2026-10-03 12:10:00', 'finalizou_em' => '2026-10-03 12:20:00',
+        ]);
+
+        $this->assertNull($this->db->table('entradas_fila')->where('id', $id)->value('telefone'));
+
+        $colunas = array_merge(...array_column($this->db->schema()->getIndexes('entradas_fila'), 'columns'));
+        $this->assertContains('finalizou_em', $colunas);
+    }
+
+    public function testDozePreservaOTelefoneDasEntradasQueJaExistiam(): void
+    {
+        $dir = sys_get_temp_dir() . '/migracoes-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        foreach (glob(__DIR__ . '/../database/migrations/{000[1-9],0010,0011}_*.php', GLOB_BRACE) as $arquivo) {
+            copy($arquivo, $dir . '/' . basename($arquivo));
+        }
+        (new Migrator($this->db, $dir))->run();
+        $loja = $this->criarEstabelecimento();
+        $this->db->table('entradas_fila')->insert([
+            'estabelecimento_id' => $loja, 'codigo' => 'antiga', 'telefone' => '5511971778203',
+            'status' => 'finalizado', 'entrou_em' => '2026-10-03 12:00:00',
+            'finalizou_em' => '2026-10-03 12:20:00',
+        ]);
+
+        $executadas = $this->migrator()->run();
+
+        $this->assertSame(['0012_entradas_fila_telefone_anulavel'], $executadas);
+        $this->assertSame(
+            '5511971778203',
+            $this->db->table('entradas_fila')->where('codigo', 'antiga')->value('telefone')
+        );
+        $this->limpar($dir);
+    }
+
+    // --- Migrator::pendentes() ----------------------------------------------------------------
+
+    public function testPendentesEmBancoVazioListaTodasSemCriarATabela(): void
+    {
+        $pendentes = $this->migrator()->pendentes();
+
+        $this->assertSame($this->nomesDasMigracoes(), $pendentes);
+        $this->assertFalse($this->db->schema()->hasTable('migrations'), 'pendentes() só lê');
+    }
+
+    public function testPendentesComTudoAplicadoFicaVazia(): void
+    {
+        $this->migrate();
+
+        $this->assertSame([], $this->migrator()->pendentes());
+    }
+
+    public function testPendentesListaSoAMigracaoQueFalta(): void
+    {
+        $this->migrate();
+        $this->db->table('migrations')->where('migration', '0010_add_confirmar_ate_em_contas')->delete();
+
+        $this->assertSame(['0010_add_confirmar_ate_em_contas'], $this->migrator()->pendentes());
+    }
+
+    /** @return list<string> */
+    private function nomesDasMigracoes(): array
+    {
+        return array_map(
+            static fn (string $caminho): string => basename($caminho, '.php'),
+            glob(__DIR__ . '/../database/migrations/*.php') ?: []
+        );
     }
 }
