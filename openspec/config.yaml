@@ -58,6 +58,15 @@ context: |
   estabelecimentos.avatar_cor/avatar_icone, avatar (null ou {cor, icone}) em todas as
   respostas da loja, escolhido no Perfil e mostrado na barra lateral no lugar da
   inicial; sem upload de imagem. Node 16 fixado para o front.
+  Retenção de dados (spec data-retention): comando `php bin/limpar` (agendado por cron),
+  que encerra como cancelado as entradas ativas paradas há RETENCAO_ENTRADA_ATIVA_HORAS
+  (padrão 24; conta de COALESCE(iniciou_em, entrou_em), loja a loja com a trava da fila e
+  promoção da próxima), apaga o telefone (NULL) das entradas finalizado/cancelado
+  encerradas há RETENCAO_TELEFONE_DIAS (padrão 30) e remove sessões, tokens de
+  redefinição/confirmação e contadores vencidos; recusa rodar com migração pendente.
+  Telefone anulável e índice em finalizou_em (0012). A consulta da entrada cancelada
+  devolve status cancelado e posicao null; o telefone pode entrar na fila de novo; a
+  página do cliente mostra "Entrada encerrada". Sem cron, nada é limpo.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

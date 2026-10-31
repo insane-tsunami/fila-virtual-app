@@ -115,6 +115,18 @@ final class QueueManagementApiTest extends ApiTestCase
         $this->assertSame([$segundo['codigo']], array_column($this->listar(), 'codigo'));
     }
 
+    public function testEntradasCanceladasNaoAparecemNaListagem(): void
+    {
+        $cancelada = $this->entrarPelaApi(1);
+        $segunda = $this->entrarPelaApi(2);
+        EntradaFila::query()->where('codigo', $cancelada['codigo'])->update([
+            'status' => EntradaFila::CANCELADO,
+            'finalizou_em' => gmdate('Y-m-d H:i:s'),
+        ]);
+
+        $this->assertSame([$segunda['codigo']], array_column($this->listar(), 'codigo'));
+    }
+
     public function testListagemDeEstabelecimentoInexistenteDevolve404(): void
     {
         $resposta = $this->chamar('GET', '/api/filas/nao-existe/entradas', null, $this->comSessao());

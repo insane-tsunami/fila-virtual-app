@@ -37,7 +37,8 @@
     "scripts": {
         "test": "phpunit",
         "migrate": "@php bin/migrate",
-        "seed-demo": "@php bin/seed-demo"
+        "seed-demo": "@php bin/seed-demo",
+        "limpar": "@php bin/limpar"
     },
     "config": {
         "sort-packages": true

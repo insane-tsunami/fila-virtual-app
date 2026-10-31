@@ -14,7 +14,8 @@ final class ConfigTest extends TestCase
         'RATE_LIMIT_CADASTRO_IP', 'RATE_LIMIT_CADASTRO_JANELA_MIN', 'TRUSTED_PROXIES',
         'APP_URL', 'MAIL_DRIVER', 'MAIL_DSN', 'MAIL_FROM',
         'RATE_LIMIT_ESQUECI_EMAIL', 'RATE_LIMIT_ESQUECI_IP', 'RATE_LIMIT_ESQUECI_JANELA_MIN', 'RATE_LIMIT_REDEFINIR_IP',
-        'RATE_LIMIT_CONFIRMACAO_CONTA', 'RATE_LIMIT_CONFIRMACAO_JANELA_MIN', 'RATE_LIMIT_CONFIRMAR_IP'];
+        'RATE_LIMIT_CONFIRMACAO_CONTA', 'RATE_LIMIT_CONFIRMACAO_JANELA_MIN', 'RATE_LIMIT_CONFIRMAR_IP',
+        'RETENCAO_ENTRADA_ATIVA_HORAS', 'RETENCAO_TELEFONE_DIAS'];
 
     /** @var array<string, string|false> */
     private array $original = [];
@@ -148,6 +149,33 @@ final class ConfigTest extends TestCase
         $this->assertSame(3, $config['rate_limit']['confirmacao_conta']);
         $this->assertSame(60, $config['rate_limit']['confirmacao_janela_minutos']);
         $this->assertSame(20, $config['rate_limit']['confirmar_ip']);
+    }
+
+    public function testRetencaoTemPadroes(): void
+    {
+        $this->assertSame(['entrada_ativa_horas' => 24, 'telefone_dias' => 30], $this->carregar()['retencao']);
+    }
+
+    public function testRetencaoLeOAmbiente(): void
+    {
+        putenv('RETENCAO_ENTRADA_ATIVA_HORAS=6');
+        putenv('RETENCAO_TELEFONE_DIAS=90');
+
+        $config = $this->carregar();
+
+        $this->assertSame(6, $config['retencao']['entrada_ativa_horas']);
+        $this->assertSame(90, $config['retencao']['telefone_dias']);
+    }
+
+    #[DataProvider('valoresInvalidos')]
+    public function testPrazoDeRetencaoInvalidoUsaOPadrao(string $valor): void
+    {
+        putenv('RETENCAO_ENTRADA_ATIVA_HORAS=' . $valor);
+        putenv('RETENCAO_TELEFONE_DIAS=' . $valor);
+
+        $config = $this->carregar();
+
+        $this->assertSame(['entrada_ativa_horas' => 24, 'telefone_dias' => 30], $config['retencao']);
     }
 
     public function testEmailEAppUrlTemPadroes(): void

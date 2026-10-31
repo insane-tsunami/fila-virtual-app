@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Services\RetencaoDeDados;
+use Support\Database;
+use Support\Migrator;
+
+$config = require __DIR__ . '/../api/config.php';
+
+try {
+    $db = Database::connect($config['db']);
+
+    // Deploy com o código novo antes da migração: o telefone anulável ainda não existe.
+    if ((new Migrator($db, __DIR__ . '/../database/migrations'))->pendentes() !== []) {
+        fwrite(STDERR, 'Banco com migrações pendentes: rode `php bin/migrate` antes.' . PHP_EOL);
+        exit(1);
+    }
+
+    $contagens = (new RetencaoDeDados(
+        $config['retencao']['entrada_ativa_horas'],
+        $config['retencao']['telefone_dias'],
+    ))->limpar();
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Falha na limpeza: ' . $e->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+foreach ([
+    'entradas_encerradas' => 'Entradas encerradas',
+    'telefones_apagados' => 'Telefones apagados',
+    'sessoes' => 'Sessões removidas',
+    'tokens' => 'Tokens removidos',
+    'contadores' => 'Contadores removidos',
+] as $chave => $rotulo) {
+    echo $rotulo . ': ' . $contagens[$chave] . PHP_EOL;
+}

@@ -5,6 +5,7 @@ Este projeto foi desenvolvido durante o MegaHack 2.0
 Vejá uma prévia aqui: https://zerafilas.now.sh/
 Dashboard: https://zerafilas.now.sh/dashboard
 
+Instruções para agentes de código (comandos, testes e armadilhas) estão em [`AGENTS.md`](AGENTS.md).
 
 ## Ambiente de desenvolvimento
 
@@ -40,6 +41,7 @@ Cada estabelecimento tem a sua conta. **`/cadastro`** cria a conta e a loja junt
 - **Esqueci a senha:** o login tem o link "Esqueci a senha" (`/esqueci-senha`). A pessoa informa o e-mail e a tela mostra sempre a mesma mensagem, haja conta ou não; se houver, recebe um e-mail com um link `/redefinir-senha#token=...` válido por 1 hora e de uso único. Ao salvar a nova senha, todas as sessões da conta são encerradas e a pessoa entra de novo pelo login. **O e-mail só sai se a API estiver configurada para enviar** (`MAIL_DRIVER=smtp`, `MAIL_DSN`, `MAIL_FROM` e `APP_URL`; sem isso o envio fica desligado e o pedido não manda nada). Para testar localmente use `MAIL_DRIVER=log`, que grava o link no log da API (só desenvolvimento). Veja o [`server/README.md`](server/README.md).
 - **Confirmação de e-mail:** o cadastro envia um link `/confirmar-email#token=...` (vale 24 horas, uso único) para o e-mail da conta. A conta não confirmada **entra e usa o dashboard normalmente**: o dashboard mostra a faixa "Confirme seu e-mail" (com "Reenviar e-mail", "Já confirmei" e "Trocar e-mail") até confirmar. A faixa mostra o prazo ("Confirme até DD/MM/AAAA", 14 dias depois do cadastro) e avisa que, depois dele, se a loja ficar 14 dias sem clientes na fila, um novo cadastro com o mesmo e-mail ou CNPJ substitui a conta e apaga a loja; conta confirmada nunca é substituída. O que muda é o "esqueci a senha": o link de redefinição **só é enviado para e-mail confirmado**. Quem digitou o e-mail errado corrige em **Configurações** (informando a senha atual) enquanto ele não estiver confirmado; depois de confirmado, o e-mail não pode mais ser trocado. As contas que já existiam passam a **não confirmadas**. Como no "esqueci a senha", o e-mail só sai com a API configurada (`MAIL_DRIVER=smtp`, `MAIL_DSN`, `MAIL_FROM` e `APP_URL`); sem isso o envio fica desligado e `MAIL_DRIVER=log` serve para ver o link no log em desenvolvimento.
 - Pendências conhecidas (veja o [`server/README.md`](server/README.md)): a confirmação não prova o CNPJ e não impede que alguém cadastre o e-mail de outra pessoa e a bloqueie.
+- **Retenção de dados:** `php bin/limpar` (na pasta `server/`, feito para o cron da hospedagem) encerra as entradas ativas paradas há 24 h (`RETENCAO_ENTRADA_ATIVA_HORAS`), apaga o telefone das entradas `finalizado` ou `cancelado` encerradas há mais de 30 dias (`RETENCAO_TELEFONE_DIAS`) e remove sessões, tokens e contadores vencidos. Sem o comando agendado, nada é limpo. O cliente de uma entrada encerrada vê "Entrada encerrada" e pode entrar na fila de novo com o mesmo telefone; detalhes no [`server/README.md`](server/README.md).
 
 ### Verificações
 

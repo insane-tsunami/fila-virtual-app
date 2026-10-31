@@ -48,6 +48,12 @@ return [
         'confirmacao_janela_minutos' => $inteiro('RATE_LIMIT_CONFIRMACAO_JANELA_MIN', 60),
         'confirmar_ip' => $inteiro('RATE_LIMIT_CONFIRMAR_IP', 20),
     ],
+    // Retenção de dados (comando `php bin/limpar`): horas até encerrar uma entrada ativa
+    // esquecida e dias até apagar o telefone de uma entrada encerrada.
+    'retencao' => [
+        'entrada_ativa_horas' => $inteiro('RETENCAO_ENTRADA_ATIVA_HORAS', 24),
+        'telefone_dias' => $inteiro('RETENCAO_TELEFONE_DIAS', 30),
+    ],
     // Base dos links enviados por e-mail (sem barra final). Sem ela, o link não é montado.
     'app_url' => rtrim($env('APP_URL'), '/'),
     // E-mail: driver desligado (padrão), log (só desenvolvimento) ou smtp (MAIL_DSN e MAIL_FROM).
