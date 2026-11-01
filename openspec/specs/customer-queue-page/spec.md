@@ -88,3 +88,34 @@ A tela de acompanhamento MUST NOT exibir telefones, nem o do próprio visitante 
 #### Scenario: Tela de acompanhamento
 - **WHEN** o visitante acompanha a própria posição
 - **THEN** a página não contém nenhum número de telefone
+
+### Requirement: Sair da fila
+Enquanto a entrada estiver ativa, a página SHALL oferecer "Sair da fila". Ao acionar, SHALL pedir a saída à API pelo código guardado e, se a API aceitar, apagar o código e voltar ao formulário. Se a API não responder, SHALL manter a entrada na tela e mostrar "Não foi possível falar com o servidor. Tente de novo.".
+
+#### Scenario: Sair da fila aguardando
+- **WHEN** o visitante está aguardando e aciona "Sair da fila"
+- **THEN** a página volta ao formulário
+- **AND** o código guardado é apagado
+
+#### Scenario: Sair em atendimento
+- **WHEN** o visitante é o próximo a ser atendido e aciona "Sair da fila"
+- **THEN** a página volta ao formulário e o código guardado é apagado
+
+#### Scenario: API fora do ar ao sair
+- **WHEN** o visitante aciona "Sair da fila" e a API não responde
+- **THEN** a página mantém a entrada e mostra "Não foi possível falar com o servidor. Tente de novo."
+
+#### Scenario: Entrada encerrada
+- **WHEN** a API informa que a entrada foi finalizada ou cancelada
+- **THEN** a página não mostra "Sair da fila"
+
+### Requirement: Aviso de privacidade na fila
+O formulário de entrada SHALL mostrar, sob o campo de telefone, a finalidade do número, o prazo de apagamento e o link para `/privacidade`. A ausência da configuração do aviso MUST NOT impedir a entrada na fila.
+
+#### Scenario: Aviso visível
+- **WHEN** o visitante abre a página pública da fila
+- **THEN** vê o aviso curto com o prazo de apagamento e o link para o aviso completo
+
+#### Scenario: API do aviso fora do ar
+- **WHEN** `GET /api/privacidade` falha e o visitante envia um telefone válido
+- **THEN** a página continua a entrar na fila normalmente
