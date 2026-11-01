@@ -1,11 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import Button from '@material-ui/core/Button';
 import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
 
-import { buscarLoja, entrarNaFila, consultarEntrada } from '../api';
+import {
+  buscarLoja,
+  buscarPrivacidade,
+  entrarNaFila,
+  consultarEntrada,
+  sairDaFila,
+} from '../api';
 import { guardarCodigo, lerCodigo, apagarCodigo } from './armazenamento';
 import { Pagina, Cartao } from './styles';
 
@@ -23,7 +29,23 @@ export default function Cliente() {
   const [enviando, setEnviando] = useState(false);
   const [entrada, setEntrada] = useState(null);
   const [falhaConsulta, setFalhaConsulta] = useState(false);
+  const [saindo, setSaindo] = useState(false);
+  const [erroSaida, setErroSaida] = useState('');
+  const [privacidade, setPrivacidade] = useState(null);
   const ativo = useRef(true);
+
+  // Aviso de privacidade: só enriquece o texto com o prazo; falhar não impede entrar na fila.
+  useEffect(() => {
+    let cancelado = false;
+    buscarPrivacidade()
+      .then((dados) => {
+        if (!cancelado) setPrivacidade(dados);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   useEffect(() => {
     ativo.current = true;
@@ -134,6 +156,30 @@ export default function Cliente() {
     setFalhaConsulta(false);
     setTelefone('');
     setErro('');
+    setErroSaida('');
+  };
+
+  const sair = async () => {
+    setErroSaida('');
+    setSaindo(true);
+    try {
+      await sairDaFila(slug, codigo);
+      if (!ativo.current) return;
+      apagarCodigo(slug);
+      setEntrada(null);
+      setFalhaConsulta(false);
+      setTelefone('');
+    } catch (e) {
+      if (!ativo.current) return;
+      if (e.status === 404) {
+        apagarCodigo(slug);
+        setEntrada(null);
+      } else {
+        setErroSaida(e.status === 0 ? ERRO_REDE : e.message);
+      }
+    } finally {
+      if (ativo.current) setSaindo(false);
+    }
   };
 
   let conteudo;
@@ -170,6 +216,10 @@ export default function Cliente() {
             Não foi possível atualizar. Tentando de novo...
           </Typography>
         )}
+        {erroSaida && <Typography role="alert">{erroSaida}</Typography>}
+        <Button variant="outlined" onClick={sair} disabled={saindo}>
+          Sair da fila
+        </Button>
       </>
     );
   } else {
@@ -184,6 +234,12 @@ export default function Cliente() {
           fullWidth
           margin="normal"
         />
+        <Typography variant="body2">
+          {privacidade
+            ? `Usamos seu telefone apenas para organizar a fila desta loja. Ele é apagado ${privacidade.retencao_telefone_dias} dias depois do fim do atendimento. `
+            : 'Usamos seu telefone apenas para organizar a fila desta loja. '}
+          <Link to="/privacidade">Saiba mais</Link>
+        </Typography>
         {erro && <Typography role="alert">{erro}</Typography>}
         <Button
           type="submit"

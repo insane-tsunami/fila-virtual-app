@@ -38,4 +38,11 @@ final class ContaController
 
         return Json::resposta($resposta, ['mensagem' => 'Senha alterada.']);
     }
+
+    public function excluir(Requisicao $requisicao, Resposta $resposta): Resposta
+    {
+        $this->contas->excluir((int) $requisicao->getAttribute('conta_id'), Json::corpo($requisicao));
+
+        return Json::resposta($resposta, ['mensagem' => 'Conta excluída.']);
+    }
 }

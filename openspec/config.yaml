@@ -67,6 +67,18 @@ context: |
   Telefone anulável e índice em finalizou_em (0012). A consulta da entrada cancelada
   devolve status cancelado e posicao null; o telefone pode entrar na fila de novo; a
   página do cliente mostra "Entrada encerrada". Sem cron, nada é limpo.
+  Sair da fila (spec queue-intake/customer-queue-page): DELETE público
+  /api/filas/{slug}/entradas/{codigo} encerra como cancelado, apaga o telefone na
+  hora e promove a próxima; idempotente (200 de novo) e 404 para código inexistente;
+  a página mostra "Sair da fila" enquanto a entrada está ativa.
+  Aviso de privacidade (spec privacy-notice): /privacidade público com controlador,
+  contato, base legal (legítimo interesse para o telefone; execução de contrato para a
+  conta), prazos e direitos; GET /api/privacidade devolve PRIVACIDADE_* e os prazos de
+  retenção; resumo sob o campo de telefone; aceite obrigatório no cadastro. Os padrões
+  de contato são provisórios (.example) e o texto precisa de revisão jurídica.
+  Exclusão de conta (spec establishment-account/profile): DELETE /api/conta com a senha
+  atual apaga conta, loja, entradas, sessões e tokens; 422 na senha errada; o Perfil tem
+  a seção "Excluir conta" e volta para a inicial.
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.

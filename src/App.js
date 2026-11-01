@@ -14,6 +14,7 @@ import Cliente from './Cliente';
 import Home from './Home';
 import EsqueciSenha from './EsqueciSenha';
 import Login from './Login';
+import Privacidade from './Privacidade';
 import RedefinirSenha from './RedefinirSenha';
 import Register from './Register';
 
@@ -70,6 +71,10 @@ function App() {
 
             <Route path="/fila/:slug">
               <Cliente />
+            </Route>
+
+            <Route path="/privacidade">
+              <Privacidade />
             </Route>
 
             <Route path="/dashboard/perfil">

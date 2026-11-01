@@ -4,7 +4,13 @@ import { render, fireEvent, act, within } from '@testing-library/react';
 
 import Perfil from './Perfil';
 import SessaoDeTeste from '../sessao/SessaoDeTeste';
-import { ApiError, definirAvatar, trocarEmail, trocarSenha } from '../api';
+import {
+  ApiError,
+  definirAvatar,
+  excluirConta,
+  trocarEmail,
+  trocarSenha,
+} from '../api';
 
 jest.mock('../api', () => {
   class ApiErrorMock extends Error {
@@ -19,11 +25,13 @@ jest.mock('../api', () => {
     trocarEmail: jest.fn(),
     definirAvatar: jest.fn(),
     reenviarConfirmacao: jest.fn(),
+    excluirConta: jest.fn(),
   };
 });
 
 const REDE = 'Não foi possível falar com o servidor. Tente de novo.';
 const expirar = jest.fn();
+const sair = jest.fn();
 
 function renderPerfil(cnpj = '93339970000105') {
   return render(
@@ -32,6 +40,7 @@ function renderPerfil(cnpj = '93339970000105') {
         valor={{
           token: 'tok',
           expirar,
+          sair,
           conta: {
             email: 'contato@modaazul.com',
             cnpj,
@@ -65,7 +74,9 @@ beforeEach(() => {
   definirAvatar.mockReset();
   trocarSenha.mockReset();
   trocarEmail.mockReset();
+  excluirConta.mockReset();
   expirar.mockReset();
+  sair.mockReset();
 });
 
 describe('Configurações do estabelecimento', () => {
@@ -371,6 +382,7 @@ function PerfilComLoja({ lojaInicial }) {
         valor={{
           token: 'tok',
           expirar,
+          sair,
           loja,
           atualizarLoja: setLoja,
           conta: {
@@ -514,5 +526,73 @@ describe('Avatar da loja no Perfil', () => {
     expect(u.getByText(REDE)).toBeInTheDocument();
     expect(u.getByLabelText('Cinza')).toBeChecked();
     expect(u.getByLabelText('Beleza')).toBeChecked();
+  });
+});
+
+describe('Excluir conta', () => {
+  function formulario(u) {
+    return u.getByRole('form', { name: 'Excluir conta' });
+  }
+
+  function preencherExclusao(u, senha = 'senha-atual-1') {
+    fireEvent.change(u.getByLabelText('Senha para excluir a conta'), {
+      target: { value: senha },
+    });
+  }
+
+  async function excluir(u) {
+    await act(async () => {
+      fireEvent.submit(formulario(u));
+    });
+  }
+
+  it('envia a senha, limpa a sessão e volta para a inicial', async () => {
+    excluirConta.mockResolvedValue({ mensagem: 'Conta excluída.' });
+    const u = renderPerfil();
+    preencherExclusao(u);
+
+    await excluir(u);
+
+    expect(excluirConta).toHaveBeenCalledWith('tok', 'senha-atual-1');
+    expect(sair).toHaveBeenCalled();
+  });
+
+  it('botão desabilitado sem a senha', () => {
+    const u = renderPerfil();
+
+    expect(u.getByText('Excluir minha conta').closest('button')).toBeDisabled();
+  });
+
+  it('senha errada: mostra a mensagem e mantém a sessão', async () => {
+    excluirConta.mockRejectedValue(new ApiError(422, 'Senha atual incorreta.'));
+    const u = renderPerfil();
+    preencherExclusao(u, 'senha-errada-1');
+
+    await excluir(u);
+
+    expect(u.getByText('Senha atual incorreta.')).toBeInTheDocument();
+    expect(sair).not.toHaveBeenCalled();
+    expect(expirar).not.toHaveBeenCalled();
+  });
+
+  it('API fora do ar: mensagem fixa', async () => {
+    excluirConta.mockRejectedValue(new ApiError(0, 'rede'));
+    const u = renderPerfil();
+    preencherExclusao(u);
+
+    await excluir(u);
+
+    expect(u.getByText(REDE)).toBeInTheDocument();
+    expect(sair).not.toHaveBeenCalled();
+  });
+
+  it('401 (sessão inválida): expira a sessão', async () => {
+    excluirConta.mockRejectedValue(new ApiError(401, 'sessão'));
+    const u = renderPerfil();
+    preencherExclusao(u);
+
+    await excluir(u);
+
+    expect(expirar).toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ use Controllers\ConfirmacaoEmailController;
 use Controllers\ContaController;
 use Controllers\DashboardController;
 use Controllers\LojaController;
+use Controllers\PrivacidadeController;
 use Controllers\RecuperacaoSenhaController;
 use Controllers\SessaoController;
 use Middleware\Autenticacao;
@@ -84,11 +85,14 @@ final class Aplicacao
         );
         $autenticada = new Autenticacao($sessoes);
         $daLoja = new LojaDaConta();
+        $privacidade = new PrivacidadeController($config['privacidade'] ?? [], $config['retencao'] ?? []);
 
         // Cliente (públicas)
         $app->post('/api/filas/{slug}/entradas', [$cliente, 'entrar']);
         $app->get('/api/filas/{slug}/entradas/{codigo}', [$cliente, 'consultar']);
+        $app->delete('/api/filas/{slug}/entradas/{codigo}', [$cliente, 'sair']);
         $app->get('/api/filas/{slug}', [$loja, 'dados']);
+        $app->get('/api/privacidade', [$privacidade, 'aviso']);
 
         // Conta e sessão: cadastro e login são públicos
         $app->post('/api/contas', [$conta, 'cadastrar']);
@@ -96,6 +100,7 @@ final class Aplicacao
         $app->delete('/api/sessao', [$sessao, 'sair'])->add($autenticada);
         $app->get('/api/conta', [$conta, 'dados'])->add($autenticada);
         $app->put('/api/conta/senha', [$conta, 'trocarSenha'])->add($autenticada);
+        $app->delete('/api/conta', [$conta, 'excluir'])->add($autenticada);
 
         // Confirmação do e-mail: confirmar é público (o link abre em qualquer aparelho); o resto exige sessão
         $app->post('/api/email/confirmar', [$confirmar, 'confirmar']);

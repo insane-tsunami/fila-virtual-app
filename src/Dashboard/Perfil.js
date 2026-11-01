@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { makeStyles } from '@material-ui/core/styles';
 import TextField from '@material-ui/core/TextField';
@@ -10,7 +11,7 @@ import { Wrapper, Container, Content, Painel } from './styles';
 import BarraLateral from './BarraLateral';
 import AvisoEmail from './AvisoEmail';
 import EscolherAvatar from './EscolherAvatar';
-import { trocarEmail, trocarSenha } from '../api';
+import { excluirConta, trocarEmail, trocarSenha } from '../api';
 import { useSessao } from '../sessao/SessaoProvider';
 
 const ERRO_REDE = 'Não foi possível falar com o servidor. Tente de novo.';
@@ -35,6 +36,12 @@ const useStyles = makeStyles((theme) => ({
     color: '#323c47',
     margin: theme.spacing(1),
   },
+  secao: {
+    fontSize: 18,
+    color: '#323c47',
+    marginTop: theme.spacing(4),
+    marginBottom: theme.spacing(1),
+  },
 }));
 
 // XX.XXX.XXX/XXXX-DD (as 12 primeiras posições aceitam letras; um valor que não
@@ -47,7 +54,7 @@ const mascararCnpj = (cnpj) =>
 
 export default function Perfil() {
   const classes = useStyles();
-  const { conta, token, expirar, definirConta } = useSessao();
+  const { conta, token, expirar, definirConta, sair } = useSessao();
   // O estado vem da API (sempre um booleano); sem ele a conta é tratada como confirmada.
   const emailConfirmado = conta.email_confirmado !== false;
   const [novoEmail, setNovoEmail] = useState('');
@@ -59,6 +66,9 @@ export default function Perfil() {
   const [confirmacao, setConfirmacao] = useState('');
   const [resultado, setResultado] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [senhaExclusao, setSenhaExclusao] = useState('');
+  const [resultadoExclusao, setResultadoExclusao] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   const limparSenhas = () => {
     setAtual('');
@@ -116,6 +126,28 @@ export default function Perfil() {
       }
     }
     setEnviandoEmail(false);
+  }
+
+  async function excluirMinhaConta(evento) {
+    evento.preventDefault();
+    setResultadoExclusao(null);
+    setExcluindo(true);
+    try {
+      await excluirConta(token, senhaExclusao);
+      // A conta e as sessões já não existem: limpa o navegador e volta para a inicial.
+      sair();
+    } catch (e) {
+      if (e.status === 401) {
+        expirar();
+        return;
+      }
+      setSenhaExclusao('');
+      setResultadoExclusao({
+        ok: false,
+        texto: e.status === 0 ? ERRO_REDE : e.message,
+      });
+    }
+    setExcluindo(false);
   }
 
   return (
@@ -264,6 +296,49 @@ export default function Perfil() {
               </form>
             )}
             <EscolherAvatar />
+            <Typography className={classes.secao}>Privacidade</Typography>
+            <Typography className={classes.aviso}>
+              <Link to="/privacidade">Aviso de Privacidade</Link>
+            </Typography>
+            <form
+              className={classes.root}
+              noValidate
+              autoComplete="off"
+              aria-label="Excluir conta"
+              onSubmit={excluirMinhaConta}
+            >
+              <Typography className={classes.secao}>Excluir conta</Typography>
+              <Typography className={classes.aviso}>
+                Apaga a conta, a loja e todas as entradas da fila. Não dá para
+                desfazer.
+              </Typography>
+              <div>
+                <TextField
+                  id="outlined-delete-password-input"
+                  label="Senha para excluir a conta"
+                  type="password"
+                  autoComplete="current-password"
+                  variant="outlined"
+                  value={senhaExclusao}
+                  onChange={(e) => setSenhaExclusao(e.target.value)}
+                />
+              </div>
+              {resultadoExclusao && (
+                <Typography role="alert" className={classes.aviso}>
+                  {resultadoExclusao.texto}
+                </Typography>
+              )}
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                color="secondary"
+                className={classes.margin}
+                disabled={excluindo || !senhaExclusao}
+              >
+                Excluir minha conta
+              </Button>
+            </form>
           </Painel>
         </Content>
       </Container>

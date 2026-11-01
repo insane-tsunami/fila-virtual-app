@@ -54,6 +54,13 @@ return [
         'entrada_ativa_horas' => $inteiro('RETENCAO_ENTRADA_ATIVA_HORAS', 24),
         'telefone_dias' => $inteiro('RETENCAO_TELEFONE_DIAS', 30),
     ],
+    // Aviso de privacidade. Os padrões são provisórios (ver server/README.md): o e-mail usa
+    // o TLD reservado `.example` de propósito, para não passar por um contato real.
+    'privacidade' => [
+        'controlador' => $env('PRIVACIDADE_CONTROLADOR', 'ZeraFilas'),
+        'email' => $env('PRIVACIDADE_EMAIL', 'privacidade@zerafilas.example'),
+        'encarregado' => $env('PRIVACIDADE_ENCARREGADO'),
+    ],
     // Base dos links enviados por e-mail (sem barra final). Sem ela, o link não é montado.
     'app_url' => rtrim($env('APP_URL'), '/'),
     // E-mail: driver desligado (padrão), log (só desenvolvimento) ou smtp (MAIL_DSN e MAIL_FROM).

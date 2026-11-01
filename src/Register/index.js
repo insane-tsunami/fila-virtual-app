@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { makeStyles } from '@material-ui/core/styles';
 import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
+import Checkbox from '@material-ui/core/Checkbox';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Typography from '@material-ui/core/Typography';
 
 import {
@@ -43,6 +45,7 @@ export default function Register() {
   });
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [aceite, setAceite] = useState(false);
 
   const mudar = (campo) => (evento) =>
     setCampos({ ...campos, [campo]: evento.target.value });
@@ -53,6 +56,10 @@ export default function Register() {
 
   async function enviar(evento) {
     evento.preventDefault();
+    if (!aceite) {
+      setErro('Marque o Aviso de Privacidade para continuar.');
+      return;
+    }
     if (campos.senha !== campos.confirmacao) {
       setErro('As senhas não são iguais.');
       return;
@@ -138,6 +145,21 @@ export default function Register() {
                   onChange={mudar('confirmacao')}
                 />
               </div>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={aceite}
+                    onChange={(e) => setAceite(e.target.checked)}
+                    name="aceite-privacidade"
+                  />
+                }
+                label={
+                  <span>
+                    Li e aceito o{' '}
+                    <Link to="/privacidade">Aviso de Privacidade</Link>
+                  </span>
+                }
+              />
               {erro && <Typography role="alert">{erro}</Typography>}
               <Button
                 type="submit"
@@ -145,7 +167,7 @@ export default function Register() {
                 size="large"
                 color="secondary"
                 className={classes.margin}
-                disabled={enviando}
+                disabled={enviando || !aceite}
               >
                 Cadastrar
               </Button>

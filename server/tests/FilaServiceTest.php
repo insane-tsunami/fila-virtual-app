@@ -327,4 +327,65 @@ final class FilaServiceTest extends DatabaseTestCase
         $this->assertNotNull($promovida->iniciou_em);
         $this->assertNull($promovida->finalizou_em);
     }
+
+    // --- queue-intake: sair da fila ---------------------------------------
+
+    public function testSairAguardandoEncerraEApagaOTelefone(): void
+    {
+        $primeiro = $this->codigo(1);
+        $segundo = $this->codigo(2);
+
+        $resultado = $this->fila->sair(self::SLUG, $segundo);
+
+        $this->assertSame('cancelado', $resultado['status']);
+        $this->assertNull($resultado['posicao']);
+        $entrada = EntradaFila::query()->where('codigo', $segundo)->first();
+        $this->assertSame('cancelado', $entrada->status);
+        $this->assertNull($entrada->telefone);
+        $this->assertNotNull($entrada->finalizou_em);
+        $this->assertSame(['em_atendimento'], $this->statusDaFila(), 'o primeiro continua em atendimento');
+        $this->assertSame('em_atendimento', $this->fila->consultar(self::SLUG, $primeiro)['status']);
+    }
+
+    public function testSairEmAtendimentoPromoveAProxima(): void
+    {
+        $primeiro = $this->codigo(1);
+        $segundo = $this->codigo(2);
+
+        $this->fila->sair(self::SLUG, $primeiro);
+
+        $this->assertSame('cancelado', $this->fila->consultar(self::SLUG, $primeiro)['status']);
+        $this->assertSame('em_atendimento', $this->fila->consultar(self::SLUG, $segundo)['status']);
+        $this->assertSame(1, $this->fila->consultar(self::SLUG, $segundo)['posicao']);
+    }
+
+    public function testSairDeNovoNaoMudaNada(): void
+    {
+        $codigo = $this->codigo(1);
+        $this->fila->sair(self::SLUG, $codigo);
+        $antes = EntradaFila::query()->where('codigo', $codigo)->first();
+
+        $resultado = $this->fila->sair(self::SLUG, $codigo);
+
+        $this->assertSame('cancelado', $resultado['status']);
+        $this->assertSame($antes->finalizou_em, EntradaFila::query()->where('codigo', $codigo)->value('finalizou_em'));
+    }
+
+    public function testSairComCodigoInexistenteLancaNaoEncontrado(): void
+    {
+        $this->expectException(NaoEncontradoException::class);
+
+        $this->fila->sair(self::SLUG, 'nao-existe');
+    }
+
+    public function testSairDeQuemAguardaNaoRecomecaOAtendimentoDeQuemJaEstava(): void
+    {
+        $this->codigo(1);
+        $segundo = $this->codigo(2);
+        $antes = EntradaFila::query()->where('codigo', $segundo)->value('iniciou_em');
+
+        $this->fila->sair(self::SLUG, $segundo);
+
+        $this->assertSame($antes, EntradaFila::query()->where('codigo', $segundo)->value('iniciou_em'));
+    }
 }

@@ -391,4 +391,41 @@ final class AccountApiTest extends ApiTestCase
         $this->assertSame(200, $this->chamar('GET', '/api/conta', null, $this->comSessao($token))->getStatusCode());
         $this->assertSame(401, $this->chamar('GET', '/api/conta', null, $this->comSessao($outra))->getStatusCode());
     }
+
+    // --- Exclusão da conta --------------------------------------------------------------
+
+    public function testDonaExcluiAContaComALojaEAsEntradas(): void
+    {
+        $corpo = $this->cadastrarConta('Moda Azul', 'a@exemplo.com', '93339970000105', 'senha-atual-1');
+        $token = $corpo['token'];
+        $this->chamar('POST', '/api/filas/moda-azul/entradas', ['telefone' => '(11) 97177-8203']);
+
+        $resposta = $this->chamar('DELETE', '/api/conta', ['senha' => 'senha-atual-1'], $this->comSessao($token));
+
+        $this->assertSame(200, $resposta->getStatusCode());
+        $this->assertSame('Conta excluída.', $this->json($resposta)['mensagem']);
+        $this->assertFalse($this->db->table('contas')->where('email', 'a@exemplo.com')->exists());
+        $this->assertFalse($this->db->table('estabelecimentos')->where('slug', 'moda-azul')->exists());
+        $this->assertSame(0, $this->db->table('entradas_fila')->count());
+        $this->assertSame(0, $this->db->table('sessoes')->count());
+        $this->assertSame(401, $this->chamar('GET', '/api/conta', null, $this->comSessao($token))->getStatusCode());
+    }
+
+    public function testExclusaoComSenhaErradaEh422ENaoApagaNada(): void
+    {
+        $token = $this->cadastrarConta('Moda Azul', 'a@exemplo.com', '93339970000105', 'senha-atual-1')['token'];
+
+        $resposta = $this->chamar('DELETE', '/api/conta', ['senha' => 'senha-errada-1'], $this->comSessao($token));
+
+        $this->assertSame(422, $resposta->getStatusCode());
+        $this->assertSame('Senha atual incorreta.', $this->json($resposta)['erro']);
+        $this->assertTrue($this->db->table('contas')->where('email', 'a@exemplo.com')->exists());
+    }
+
+    public function testExclusaoSemSessaoEh401(): void
+    {
+        $resposta = $this->chamar('DELETE', '/api/conta', ['senha' => 'senha-atual-1']);
+
+        $this->assertSame(401, $resposta->getStatusCode());
+    }
 }

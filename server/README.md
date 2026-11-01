@@ -47,6 +47,9 @@ A configuração vem de **variáveis de ambiente** (o PHP não lê o `.env` sozi
 | `RATE_LIMIT_REDEFINIR_IP` | Tokens inválidos na redefinição por IP que bloqueiam o IP na janela de `RATE_LIMIT_JANELA_MIN` | `20` |
 | `RETENCAO_ENTRADA_ATIVA_HORAS` | Horas sem mudança de estado (entrada na fila ou início do atendimento) até o `php bin/limpar` encerrar como `cancelado` uma entrada ativa esquecida | `24` |
 | `RETENCAO_TELEFONE_DIAS` | Dias desde o encerramento até o `php bin/limpar` apagar o telefone de uma entrada `finalizado` ou `cancelado` | `30` |
+| `PRIVACIDADE_CONTROLADOR` | Nome que aparece como responsável pelo ZeraFilas no aviso de `/privacidade` | `ZeraFilas` |
+| `PRIVACIDADE_EMAIL` | Contato de privacidade do aviso. O padrão usa o TLD reservado `.example` de propósito: troque antes de produção | `privacidade@zerafilas.example` |
+| `PRIVACIDADE_ENCARREGADO` | Nome ou setor do encarregado de dados, opcional | vazio |
 
 Os `RATE_LIMIT_*` e os `RETENCAO_*` aceitam só inteiros positivos; qualquer outro valor (vazio, `0`, negativo, texto) é ignorado e vale o padrão.
 
@@ -78,6 +81,18 @@ Comando idempotente, feito para rodar por cron (ver [Hospedagem](#hospedagem)). 
 **Nada é limpo sem o cron.** A aplicação não executa essas regras dentro das requisições: sem o agendamento, as entradas esquecidas ficam na fila e os telefones ficam no banco indefinidamente.
 
 A entrada encerrada pela retenção (`cancelado`) não aparece no dashboard, que só lista as ativas. Na página pública o cliente vê "Entrada encerrada" e pode entrar na fila de novo com o mesmo telefone.
+
+## Privacidade e LGPD
+
+**Aviso.** A página pública `/privacidade` explica quem trata os dados, para quê, com que base legal, por quanto tempo e como exercer os direitos. O formulário da fila mostra um resumo com o prazo de apagamento e o cadastro da loja exige o aceite do aviso. O texto usa `PRIVACIDADE_CONTROLADOR`, `PRIVACIDADE_EMAIL` e `PRIVACIDADE_ENCARREGADO`; os padrões são **provisórios** (`ZeraFilas` e `privacidade@zerafilas.example`) e precisam ser trocados antes de produção. **O texto é um rascunho operacional: não substitui revisão por advogado nem nomeia formalmente um encarregado.**
+
+**Papéis.** Na fila, a loja decide para que o telefone é usado e é a **controladora**; o ZeraFilas atua como **operador**. Os dados da conta da loja são controlados pelo ZeraFilas para prestar o serviço. Falta um contrato ou termo entre a plataforma e as lojas (art. 39) definindo isso por escrito.
+
+**Base legal.** O telefone usa **legítimo interesse** (art. 7º, IX): é necessário para organizar a fila, o cliente espera esse uso ao entrar, e as salvaguardas são o mascaramento no dashboard, a saída imediata com apagamento do número, a retenção de 30 dias e a ausência de venda ou uso para outra finalidade. Esse é o teste de balanceamento resumido; a conta da loja usa execução de contrato (art. 7º, V).
+
+**Direitos do titular.** O cliente elimina o telefone na hora com "Sair da fila" na página da loja, e a dona exclui a conta com tudo o que é dela em Configurações → "Excluir conta" (senha atual obrigatória). Para acesso, correção ou outros pedidos, o caminho é o contato do aviso (`PRIVACIDADE_EMAIL`). O número nunca é devolvido pela API.
+
+**Pendências (revisão jurídica ou hospedagem, #27):** aprovar o texto e os dados reais do controlador/encarregado; contrato com as lojas; retenção de dados fiscais/contábeis; plano de incidente (art. 48); transferência internacional se a hospedagem for fora do Brasil; política de backups e logs (que ainda guardam os números por conta própria).
 
 ## Rodar localmente
 
@@ -158,12 +173,15 @@ curl -X PUT http://localhost:8080/api/conta/email -H "Authorization: Bearer $TOK
   -d '{"email": "certo@modaazul.com", "senha": "senha-segura-1"}'
 ```
 
-**Dados da conta, trocar a senha e sair** (exigem `Authorization`). Trocar a senha encerra as outras sessões da conta; senha atual errada é `422` (e não `401`).
+**Dados da conta, trocar a senha, sair e excluir a conta** (exigem `Authorization`). Trocar a senha encerra as outras sessões da conta; senha atual errada é `422` (e não `401`). Excluir a conta apaga a conta, a loja, as entradas da fila, as sessões e os tokens; os contadores por e-mail e por IP ficam (são hashes que vencem sozinhos).
 
 ```bash
 curl http://localhost:8080/api/conta -H "Authorization: Bearer $TOKEN"
 curl -X PUT http://localhost:8080/api/conta/senha -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"senha_atual": "senha-segura-1", "nova_senha": "outra-senha-22"}'
+curl -X DELETE http://localhost:8080/api/conta -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"senha": "senha-segura-1"}'
+# {"mensagem":"Conta excluída."}
 curl -X DELETE http://localhost:8080/api/sessao -H "Authorization: Bearer $TOKEN"   # 204
 ```
 
@@ -206,6 +224,20 @@ curl -X POST http://localhost:8080/api/filas/veste-bem/entradas \
 ```bash
 curl http://localhost:8080/api/filas/veste-bem/entradas/9f3c...
 # {"codigo":"9f3c...","posicao":1,"status":"em_atendimento"}
+```
+
+**Sair da fila** (público), com o `codigo` da própria entrada. Encerra a entrada como `cancelado`, apaga o telefone na hora e promove a próxima quando ninguém fica em atendimento. Chamar de novo devolve `200` com o estado atual; código inexistente é `404`.
+
+```bash
+curl -X DELETE http://localhost:8080/api/filas/veste-bem/entradas/9f3c...
+# {"codigo":"9f3c...","posicao":null,"status":"cancelado"}
+```
+
+**Aviso de privacidade** (público): a configuração do aviso e os prazos que a retenção aplica, usados pela página `/privacidade` e pelo resumo na fila.
+
+```bash
+curl http://localhost:8080/api/privacidade
+# {"controlador":"ZeraFilas","email":"privacidade@zerafilas.example","encarregado":"","base_legal":"legítimo interesse (art. 7º, IX, da LGPD)","retencao_entrada_ativa_horas":24,"retencao_telefone_dias":30}
 ```
 
 **Listar a fila** (dashboard, exige `Authorization` e a loja da sua conta). O telefone vem mascarado.
@@ -277,7 +309,7 @@ done
 server/
   public/            front controller (index.php) e .htaccess para Apache
   api/config.php     lê as variáveis de ambiente e devolve um array
-  app/controllers/   ClienteController, DashboardController, LojaController, ContaController, SessaoController, RecuperacaoSenhaController e ConfirmacaoEmailController
+  app/controllers/   ClienteController, DashboardController, LojaController, ContaController, SessaoController, RecuperacaoSenhaController, ConfirmacaoEmailController e PrivacidadeController
   app/services/      FilaService, LojaService (dados, endereço e avatar da loja), ContaService (cadastro, troca de senha), ExclusaoDeConta (apaga a conta com a loja e tudo o que é dela), SessaoService (login, token), LimiteDeTentativas (contadores do limite), RecuperacaoSenhaService (esqueci a senha), ConfirmacaoEmailService (confirmar, reenviar e trocar o e-mail), RetencaoDeDados (limpeza das entradas, telefones, sessões, tokens e contadores vencidos), Mailer com os drivers MailerDesligado, MailerLog e MailerSmtp, e exceções
   app/models/        Estabelecimento, EntradaFila, Conta e Sessao
   app/middleware/    Cors, Autenticacao (token) e LojaDaConta (posse da loja)
@@ -309,4 +341,4 @@ A hospedagem ainda não foi definida. O código não depende de nenhum provedor:
 - **A loja `veste-bem` é só uma demonstração:** sem dona, serve a página pública da fila mas ninguém a acessa pelo dashboard. Ela não existe em banco novo; só `php bin/seed-demo` a cria (em MySQL exige `--forcar`). A migração `0009` a remove de bancos antigos se estiver sem dona e sem entradas.
 - **O dígito verificador só pega erro de digitação:** não prova que o CNPJ é de quem se cadastra (isso depende de consulta à Receita ou de confirmação de e-mail, que não existem).
 - **Qualquer pessoa pode entrar na fila com qualquer telefone:** não há limite de requisições nem confirmação de que o número é de quem o digitou. Isso precisa ser resolvido antes de existirem notificações.
-- **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A retenção (`php bin/limpar`) apaga o telefone das entradas `finalizado` ou `cancelado` 30 dias depois do encerramento (`RETENCAO_TELEFONE_DIAS`) e encerra as ativas paradas há 24 h (`RETENCAO_ENTRADA_ATIVA_HORAS`); isso depende de a hospedagem agendar o comando (ver [Hospedagem](#hospedagem)). Os backups e os logs do servidor ainda guardam os números por conta própria: a política deles fica com a hospedagem.
+- **O telefone é dado pessoal (LGPD).** O banco guarda o número completo e a API nunca o devolve inteiro ao dashboard. A retenção (`php bin/limpar`) apaga o telefone das entradas `finalizado` ou `cancelado` 30 dias depois do encerramento (`RETENCAO_TELEFONE_DIAS`) e encerra as ativas paradas há 24 h (`RETENCAO_ENTRADA_ATIVA_HORAS`); isso depende de a hospedagem agendar o comando (ver [Hospedagem](#hospedagem)). O cliente sai da fila e apaga o número na hora, e a dona exclui a conta no Perfil. Os backups e os logs do servidor ainda guardam os números por conta própria, e o texto do aviso ainda precisa de revisão jurídica (ver [Privacidade e LGPD](#privacidade-e-lgpd)).
