@@ -52,6 +52,11 @@ export default function Home() {
                   Já tem cadastro? <Link to="/login">Entrar</Link>
                 </small>
               </Span>
+              <Span>
+                <small>
+                  <Link to="/privacidade">Aviso de Privacidade</Link>
+                </small>
+              </Span>
             </Bottom>
           </Content>
         </CollumnRight>

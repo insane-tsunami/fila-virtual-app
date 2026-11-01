@@ -72,6 +72,8 @@ function preencher(u, mudancas = {}) {
   Object.entries(valores).forEach(([rotulo, valor]) =>
     fireEvent.change(u.getByLabelText(rotulo), { target: { value: valor } })
   );
+  // O aceite do aviso é obrigatório em todas as tentativas de cadastro.
+  fireEvent.click(u.getByRole('checkbox'));
 }
 
 async function enviar(u) {
@@ -104,6 +106,22 @@ describe('Cadastro do estabelecimento', () => {
       'password'
     );
     expect(u.getByText('Cadastrar')).toBeInTheDocument();
+  });
+
+  it('exige o aceite do Aviso de Privacidade antes de cadastrar', async () => {
+    const u = renderRegister();
+    await esvaziar();
+
+    expect(u.getByRole('checkbox')).not.toBeChecked();
+    expect(u.getByText('Cadastrar').closest('button')).toBeDisabled();
+    expect(u.getByText('Aviso de Privacidade').closest('a')).toHaveAttribute(
+      'href',
+      '/privacidade'
+    );
+
+    preencher(u);
+    expect(u.getByRole('checkbox')).toBeChecked();
+    expect(u.getByText('Cadastrar').closest('button')).not.toBeDisabled();
   });
 
   it('leva ao login pelo botão "Faça o Login aqui"', async () => {

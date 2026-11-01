@@ -62,6 +62,43 @@ final class FilaService
     }
 
     /**
+     * Sai da fila: encerra a entrada ativa como `cancelado`, apaga o telefone (a finalidade
+     * acabou) e promove a próxima quando ninguém fica em atendimento. Idempotente: chamar
+     * de novo para uma entrada já encerrada devolve o estado atual sem mudar nada.
+     *
+     * @return array{codigo: string, posicao: int|null, status: string}
+     */
+    public function sair(string $slug, string $codigo): array
+    {
+        return Capsule::connection()->transaction(function () use ($slug, $codigo): array {
+            $estabelecimento = $this->travarEstabelecimento($slug);
+            $entrada = $this->entrada($estabelecimento, $codigo);
+
+            if (!in_array($entrada->status, EntradaFila::ATIVOS, true)) {
+                return $this->resumo($entrada);
+            }
+
+            $agora = gmdate('Y-m-d H:i:s');
+            $entrada->update([
+                'status' => EntradaFila::CANCELADO,
+                'finalizou_em' => $agora,
+                'telefone' => null,
+            ]);
+
+            // Só promove quando a loja ficou sem ninguém em atendimento; a ativa mais antiga
+            // pode já estar em atendimento (saída de quem aguardava), e aí nada muda.
+            if (!$this->ativas($estabelecimento)->where('status', EntradaFila::EM_ATENDIMENTO)->exists()) {
+                $this->ativas($estabelecimento)->orderBy('id')->first()?->update([
+                    'status' => EntradaFila::EM_ATENDIMENTO,
+                    'iniciou_em' => $agora,
+                ]);
+            }
+
+            return $this->resumo($entrada);
+        });
+    }
+
+    /**
      * Fila ativa em ordem de chegada, com o telefone mascarado.
      *
      * @return list<array{codigo: string, posicao: int, status: string, telefone: string}>

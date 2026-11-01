@@ -17,6 +17,7 @@ jest.mock('./api', () => {
     obterConta: jest.fn(),
     listarFila: jest.fn(),
     buscarLoja: jest.fn(),
+    buscarPrivacidade: jest.fn(),
     entrarNaFila: jest.fn(),
     consultarEntrada: jest.fn(),
     entrar: jest.fn(),
@@ -49,6 +50,14 @@ beforeEach(() => {
   Object.values(api).forEach((f) => f.mockReset && f.mockReset());
   api.listarFila.mockResolvedValue([]);
   api.buscarLoja.mockResolvedValue(DADOS.loja);
+  api.buscarPrivacidade.mockResolvedValue({
+    controlador: 'ZeraFilas',
+    email: 'privacidade@zerafilas.example',
+    encarregado: '',
+    base_legal: 'legítimo interesse',
+    retencao_entrada_ativa_horas: 24,
+    retencao_telefone_dias: 30,
+  });
   apagarToken();
   window.sessionStorage.clear();
 });
@@ -96,6 +105,12 @@ describe('Rotas públicas', () => {
     const { getByLabelText } = await abrir('/fila/moda-azul');
 
     expect(getByLabelText('Seu telefone (com DDD)')).toBeInTheDocument();
+  });
+
+  it('o aviso de privacidade abre sem login', async () => {
+    const { getByText } = await abrir('/privacidade');
+
+    expect(getByText('Aviso de Privacidade')).toBeInTheDocument();
   });
 });
 

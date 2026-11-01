@@ -155,6 +155,32 @@ final class ContaService
     }
 
     /**
+     * Exclui a conta da própria dona, com a senha atual como prova de posse.
+     * Senha errada é 422 e conta no limite de senha por conta.
+     *
+     * @param array<mixed> $corpo
+     */
+    public function excluir(int $contaId, array $corpo): void
+    {
+        $senha = $corpo['senha'] ?? null;
+        if (!is_string($senha) || $senha === '') {
+            throw new DadosInvalidosException('Informe a senha.');
+        }
+
+        $chave = LimiteDeTentativas::chave($contaId);
+        $this->limite?->verificar(LimiteDeTentativas::SENHA_CONTA, $chave);
+
+        $conta = Conta::query()->find($contaId) ?? throw new NaoEncontradoException('Conta não encontrada.');
+        if (!Senha::confere($senha, $conta->senha_hash)) {
+            $this->limite?->registrar(LimiteDeTentativas::SENHA_CONTA, $chave);
+
+            throw new DadosInvalidosException('Senha atual incorreta.');
+        }
+
+        Capsule::connection()->transaction(fn () => $this->exclusao->excluir($contaId));
+    }
+
+    /**
      * Libera o e-mail e o CNPJ para o cadastro: 409 se alguma conta que os ocupa não pode ser
      * substituída (a mensagem do e-mail vem antes da do CNPJ); senão, apaga todas elas.
      */

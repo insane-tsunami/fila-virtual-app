@@ -49,12 +49,20 @@ const slugUrl = (slug) => encodeURIComponent(slug);
 export const buscarLoja = (slug) =>
   requisitar('GET', `/api/filas/${slugUrl(slug)}`);
 
+export const buscarPrivacidade = () => requisitar('GET', '/api/privacidade');
+
 export const entrarNaFila = (slug, telefone) =>
   requisitar('POST', `/api/filas/${slugUrl(slug)}/entradas`, { telefone });
 
 export const consultarEntrada = (slug, codigo) =>
   requisitar(
     'GET',
+    `/api/filas/${slugUrl(slug)}/entradas/${encodeURIComponent(codigo)}`
+  );
+
+export const sairDaFila = (slug, codigo) =>
+  requisitar(
+    'DELETE',
     `/api/filas/${slugUrl(slug)}/entradas/${encodeURIComponent(codigo)}`
   );
 
@@ -107,6 +115,9 @@ export const trocarSenha = (token, senhaAtual, novaSenha) =>
     { senha_atual: senhaAtual, nova_senha: novaSenha },
     token
   );
+
+export const excluirConta = (token, senha) =>
+  requisitar('DELETE', '/api/conta', { senha }, token);
 
 export const pedirRedefinicao = (email) =>
   requisitar('POST', '/api/senha/esqueci', { email });

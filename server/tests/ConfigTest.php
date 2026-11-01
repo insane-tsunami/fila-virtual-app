@@ -15,7 +15,8 @@ final class ConfigTest extends TestCase
         'APP_URL', 'MAIL_DRIVER', 'MAIL_DSN', 'MAIL_FROM',
         'RATE_LIMIT_ESQUECI_EMAIL', 'RATE_LIMIT_ESQUECI_IP', 'RATE_LIMIT_ESQUECI_JANELA_MIN', 'RATE_LIMIT_REDEFINIR_IP',
         'RATE_LIMIT_CONFIRMACAO_CONTA', 'RATE_LIMIT_CONFIRMACAO_JANELA_MIN', 'RATE_LIMIT_CONFIRMAR_IP',
-        'RETENCAO_ENTRADA_ATIVA_HORAS', 'RETENCAO_TELEFONE_DIAS'];
+        'RETENCAO_ENTRADA_ATIVA_HORAS', 'RETENCAO_TELEFONE_DIAS',
+        'PRIVACIDADE_CONTROLADOR', 'PRIVACIDADE_EMAIL', 'PRIVACIDADE_ENCARREGADO'];
 
     /** @var array<string, string|false> */
     private array $original = [];
@@ -176,6 +177,28 @@ final class ConfigTest extends TestCase
         $config = $this->carregar();
 
         $this->assertSame(['entrada_ativa_horas' => 24, 'telefone_dias' => 30], $config['retencao']);
+    }
+
+    public function testAvisoDePrivacidadeTemPadroesProvisorios(): void
+    {
+        $this->assertSame([
+            'controlador' => 'ZeraFilas',
+            'email' => 'privacidade@zerafilas.example',
+            'encarregado' => '',
+        ], $this->carregar()['privacidade']);
+    }
+
+    public function testAvisoDePrivacidadeLeOAmbiente(): void
+    {
+        putenv('PRIVACIDADE_CONTROLADOR=Loja X Ltda');
+        putenv('PRIVACIDADE_EMAIL=dpo@lojax.com');
+        putenv('PRIVACIDADE_ENCARREGADO=Maria');
+
+        $this->assertSame([
+            'controlador' => 'Loja X Ltda',
+            'email' => 'dpo@lojax.com',
+            'encarregado' => 'Maria',
+        ], $this->carregar()['privacidade']);
     }
 
     public function testEmailEAppUrlTemPadroes(): void

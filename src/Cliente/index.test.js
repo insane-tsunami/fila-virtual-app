@@ -4,7 +4,14 @@ import { render, fireEvent, wait, act } from '@testing-library/react';
 
 import Cliente from './index';
 import App from '../App';
-import { ApiError, buscarLoja, entrarNaFila, consultarEntrada } from '../api';
+import {
+  ApiError,
+  buscarLoja,
+  buscarPrivacidade,
+  entrarNaFila,
+  consultarEntrada,
+  sairDaFila,
+} from '../api';
 
 jest.mock('../api', () => {
   class ApiErrorMock extends Error {
@@ -18,6 +25,8 @@ jest.mock('../api', () => {
     buscarLoja: jest.fn(),
     entrarNaFila: jest.fn(),
     consultarEntrada: jest.fn(),
+    sairDaFila: jest.fn(),
+    buscarPrivacidade: jest.fn(),
   };
 });
 
@@ -44,6 +53,15 @@ beforeEach(() => {
   buscarLoja.mockReset().mockResolvedValue(LOJA);
   entrarNaFila.mockReset();
   consultarEntrada.mockReset();
+  sairDaFila.mockReset();
+  buscarPrivacidade.mockReset().mockResolvedValue({
+    controlador: 'ZeraFilas',
+    email: 'privacidade@zerafilas.example',
+    encarregado: '',
+    base_legal: 'legítimo interesse',
+    retencao_entrada_ativa_horas: 24,
+    retencao_telefone_dias: 30,
+  });
   window.localStorage.clear();
 });
 
@@ -85,6 +103,43 @@ describe('Página pública da fila da loja', () => {
     const l = render(<App />);
     expect(l.getAllByText(/Entrar/i).length).toBeGreaterThan(0);
     window.history.pushState({}, '', '/');
+  });
+});
+
+describe('Aviso de privacidade na fila', () => {
+  it('mostra a finalidade, o prazo e o link para o aviso completo', async () => {
+    const u = renderCliente();
+
+    expect(
+      await u.findByText(/Usamos seu telefone apenas para organizar a fila/)
+    ).toBeInTheDocument();
+    expect(
+      u.getByText(/30 dias depois do fim do atendimento/)
+    ).toBeInTheDocument();
+    expect(u.getByText('Saiba mais').closest('a')).toHaveAttribute(
+      'href',
+      '/privacidade'
+    );
+  });
+
+  it('API do aviso fora do ar: continua entrando na fila', async () => {
+    buscarPrivacidade.mockRejectedValue(new ApiError(0, 'rede'));
+    entrarNaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: 1,
+      status: 'em_atendimento',
+    });
+    const u = renderCliente();
+
+    await wait(() =>
+      expect(u.getByText('Saiba mais').closest('a')).toHaveAttribute(
+        'href',
+        '/privacidade'
+      )
+    );
+    await entrar(u);
+
+    expect(await u.findByText('É a sua vez!')).toBeInTheDocument();
   });
 });
 
@@ -171,6 +226,77 @@ describe('Entrar na fila', () => {
     await entrar(u);
 
     expect(await u.findByText('Sua posição: 2')).toBeInTheDocument();
+  });
+});
+
+describe('Sair da fila', () => {
+  it('sai aguardando: volta ao formulário e apaga o código', async () => {
+    entrarNaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: 2,
+      status: 'aguardando',
+    });
+    sairDaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: null,
+      status: 'cancelado',
+    });
+    const u = renderCliente();
+    await entrar(u);
+    await u.findByText('Sua posição: 2');
+
+    fireEvent.click(u.getByText('Sair da fila'));
+
+    expect(
+      await u.findByLabelText('Seu telefone (com DDD)')
+    ).toBeInTheDocument();
+    expect(sairDaFila).toHaveBeenCalledWith('veste-bem', 'abc');
+    expect(window.localStorage.getItem(CHAVE)).toBeNull();
+  });
+
+  it('sai em atendimento: volta ao formulário', async () => {
+    entrarNaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: 1,
+      status: 'em_atendimento',
+    });
+    sairDaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: null,
+      status: 'cancelado',
+    });
+    const u = renderCliente();
+    await entrar(u);
+    await u.findByText('É a sua vez!');
+
+    fireEvent.click(u.getByText('Sair da fila'));
+
+    expect(
+      await u.findByLabelText('Seu telefone (com DDD)')
+    ).toBeInTheDocument();
+    expect(sairDaFila).toHaveBeenCalledWith('veste-bem', 'abc');
+  });
+
+  it('API fora do ar: mantém a entrada e avisa', async () => {
+    entrarNaFila.mockResolvedValue({
+      codigo: 'abc',
+      posicao: 2,
+      status: 'aguardando',
+    });
+    sairDaFila.mockRejectedValue(new ApiError(0, 'rede'));
+    const u = renderCliente();
+    await entrar(u);
+    await u.findByText('Sua posição: 2');
+
+    fireEvent.click(u.getByText('Sair da fila'));
+
+    expect(
+      await u.findByText(
+        'Não foi possível falar com o servidor. Tente de novo.'
+      )
+    ).toBeInTheDocument();
+    expect(u.getByText('Sua posição: 2')).toBeInTheDocument();
+    expect(window.localStorage.getItem(CHAVE)).toBe('abc');
   });
 });
 
@@ -324,6 +450,7 @@ describe('Acompanhamento automático', () => {
     );
     await avancar(30000);
     expect(consultarEntrada).toHaveBeenCalledTimes(1);
+    expect(u.queryByText('Sair da fila')).not.toBeInTheDocument();
 
     fireEvent.click(u.getByText('Entrar na fila de novo'));
     expect(u.getByLabelText('Seu telefone (com DDD)')).toBeInTheDocument();
@@ -342,6 +469,7 @@ describe('Acompanhamento automático', () => {
     expect(
       u.getByText('Sua entrada foi encerrada sem atendimento.')
     ).toBeInTheDocument();
+    expect(u.queryByText('Sair da fila')).not.toBeInTheDocument();
     await avancar(30000);
     expect(consultarEntrada).toHaveBeenCalledTimes(1);
 

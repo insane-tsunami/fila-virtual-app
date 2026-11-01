@@ -30,4 +30,10 @@ final class ClienteController
     {
         return Json::resposta($resposta, $this->fila->consultar($args['slug'], $args['codigo']));
     }
+
+    /** @param array<string, string> $args */
+    public function sair(Requisicao $requisicao, Resposta $resposta, array $args): Resposta
+    {
+        return Json::resposta($resposta, $this->fila->sair($args['slug'], $args['codigo']));
+    }
 }

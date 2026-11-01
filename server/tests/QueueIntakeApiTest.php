@@ -186,6 +186,51 @@ final class QueueIntakeApiTest extends ApiTestCase
         $this->assertSame('cancelado', $this->json($resposta)['status']);
     }
 
+    // --- Sair da fila ----------------------------------------------------------------
+
+    public function testSairDaFilaEncerraEApagaOTelefone(): void
+    {
+        $entrada = $this->entrarPelaApi(1);
+
+        $resposta = $this->chamar('DELETE', self::ENTRADAS . '/' . $entrada['codigo']);
+        $corpo = $this->json($resposta);
+
+        $this->assertSame(200, $resposta->getStatusCode());
+        $this->assertSame('cancelado', $corpo['status']);
+        $this->assertNull($corpo['posicao']);
+        $this->assertArrayNotHasKey('telefone', $corpo);
+        $this->assertNull(EntradaFila::query()->where('codigo', $entrada['codigo'])->value('telefone'));
+    }
+
+    public function testSairDaFilaDeNovoResponde200(): void
+    {
+        $entrada = $this->entrarPelaApi(1);
+        $this->chamar('DELETE', self::ENTRADAS . '/' . $entrada['codigo']);
+
+        $resposta = $this->chamar('DELETE', self::ENTRADAS . '/' . $entrada['codigo']);
+
+        $this->assertSame(200, $resposta->getStatusCode());
+        $this->assertSame('cancelado', $this->json($resposta)['status']);
+    }
+
+    public function testSairDaFilaComCodigoInexistenteDevolve404(): void
+    {
+        $resposta = $this->chamar('DELETE', self::ENTRADAS . '/nao-existe');
+
+        $this->assertSame(404, $resposta->getStatusCode());
+    }
+
+    public function testTelefoneDeQuemSaiuEntraDeNovoCom201(): void
+    {
+        $entrada = $this->entrarPelaApi(1);
+        $this->chamar('DELETE', self::ENTRADAS . '/' . $entrada['codigo']);
+
+        $resposta = $this->chamar('POST', self::ENTRADAS, ['telefone' => '(11) 90001-0001']);
+
+        $this->assertSame(201, $resposta->getStatusCode());
+        $this->assertNotSame($entrada['codigo'], $this->json($resposta)['codigo']);
+    }
+
     /** Marca a entrada como encerrada sem atendimento, como a retenção faz. */
     private function cancelar(string $codigo): void
     {
