@@ -323,13 +323,59 @@ server/
 
 ## Hospedagem
 
-A hospedagem ainda não foi definida. O código não depende de nenhum provedor: serve qualquer hospedagem com PHP 8.5+ e MySQL, apontando a raiz do site para `public/`, definindo as variáveis de ambiente e rodando `php bin/migrate` a cada deploy. Em Apache, o `public/.htaccess` já direciona tudo ao front controller.
+Produção: **Hostinger VPS `srv658911`** (Debian 13, `69.62.113.140`), com **nginx**, **PHP 8.5-FPM** e **MySQL 8.0 (Percona)**. O site público é **https://zerafilas.com.br** (e `www`), com TLS do Let's Encrypt renovado automaticamente.
 
-**Agende o `php bin/limpar` (retenção de dados).** A aplicação não limpa sozinha: sem o cron, as entradas esquecidas ficam na fila e os telefones das entradas encerradas ficam no banco além do prazo. De hora em hora basta (mais frequente não muda o resultado; mais raro só atrasa o encerramento e o apagamento). Exemplo de crontab, com o caminho do `server/`:
+### Layout no servidor
 
-```cron
-0 * * * * cd /caminho/para/server && php bin/limpar >/dev/null
 ```
+/home/dev-zerafilas/
+  app/                                        clone do repositório
+  htdocs/zerafilas.com.br/public/             build do front (raiz do site)
+  htdocs/zerafilas.com.br/api -> app/server   código da API
+  logs/nginx/ e logs/php-error.log
+/etc/zerafilas/env                            variáveis da API (root, 600)
+/etc/php/8.5/fpm/pool.d/zerafilas.conf        pool dedicado em 127.0.0.1:20005
+/etc/nginx/sites-available/zerafilas.com.br.conf
+/etc/cron.d/zerafilas                         retenção de hora em hora
+```
+
+- O nginx serve o front com fallback do SPA (`try_files ... /index.html`) e manda `/api` ao pool `zerafilas`. Front e API estão na **mesma origem**, então `REACT_APP_API_URL` fica vazia (sem CORS).
+- O MySQL tem banco e usuário `zerafilas` próprios, com privilégio só no banco do projeto; o app conecta por socket local (`DB_HOST=localhost`).
+- Não há proxy/CDN na frente: `TRUSTED_PROXIES` fica vazio e o `REMOTE_ADDR` que chega ao PHP é o IP real do cliente (verificado com dois IPs distintos).
+- **E-mails estão desligados** (`MAIL_DRIVER=desligado` no `/etc/zerafilas/env`): confirmação de e-mail e "esqueci a senha" só enviam quando o SMTP for configurado (#30).
+- O contato do aviso de privacidade ainda é o provisório (`privacidade@zerafilas.example`) até a #46.
+
+### Deploy
+
+No servidor, com o clone em `/home/dev-zerafilas/app`:
+
+```bash
+cd /home/dev-zerafilas/app
+git pull --ff-only
+cd server
+php8.5 /usr/local/bin/composer install --no-dev --no-interaction --optimize-autoloader
+set -a; . /etc/zerafilas/env; set +a
+php8.5 bin/migrate
+systemctl reload php8.5-fpm nginx
+```
+
+O front é buildado fora do servidor (Node 16) e enviado por `rsync`:
+
+```bash
+nvm use 16
+CI=true yarn build
+rsync -a --delete build/ srv658911:/home/dev-zerafilas/htdocs/zerafilas.com.br/public/
+```
+
+O deploy não toca nos outros sites do VPS: o pool, o banco e o site têm nomes próprios.
+
+### Cron da retenção
+
+`/etc/cron.d/zerafilas` roda `zerafilas-limpar` de hora em hora; o wrapper carrega o `/etc/zerafilas/env` e executa `php8.5 bin/limpar`. **Sem o cron, nada é limpo**: as entradas esquecidas ficam na fila e os telefones das entradas encerradas ficam no banco além do prazo.
+
+### TLS
+
+O certbot gerencia o certificado de `zerafilas.com.br` e `www` (`certbot.timer` ativo), com HTTP → HTTPS e renovação automática. O DNS fica no Registro.br.
 
 **Atrás de proxy ou CDN, configure `TRUSTED_PROXIES`.** Sem isso a API usa o endereço da conexão, que atrás de um proxy é o do próprio proxy: todos os usuários parecem o mesmo IP, o limite de tentativas por IP passa a valer para o site inteiro e o limite de login por e-mail+IP vira um limite por e-mail de 5 erros, com que qualquer um volta a trancar a dona fora do painel. Liste só os proxies que você controla: um endereço na lista é confiado para dizer quem é o cliente. Sem proxy, deixe vazia.
 

@@ -82,6 +82,9 @@ context: |
   Segredos (credenciais de banco etc.) NUNCA no código: usar variáveis de
   ambiente (ver server/.env.example).
   Estilo: ESLint (airbnb) + Prettier; ver .eslintrc.js e .prettierrc.
+  Produção: https://zerafilas.com.br em VPS Hostinger (nginx, PHP 8.5-FPM, MySQL 8.0),
+  front e API na mesma origem; TLS Let's Encrypt; cron de hora em hora para a retenção.
+  SMTP desligado até a #30 e contato do aviso provisório até a #46.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
