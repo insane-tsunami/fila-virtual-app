@@ -23,10 +23,9 @@ Se você realmente precisa usar outro Node, o `engines` também bloqueia `yarn l
 O front chama a API do `server/` (página pública do cliente em `/fila/<slug>` e geração do QRCode). O endereço vem de `REACT_APP_API_URL`, **gravada no pacote na hora do build** (mudou o valor, rode `yarn build` de novo). O modelo está em [`.env.example`](.env.example).
 
 - **Desenvolvimento local:** copie `.env.example` para `.env.local`, rode a API na porta 8080 com `CORS_ORIGIN=http://localhost:3000` (veja o [`server/README.md`](server/README.md)) e `yarn start`.
-- **Produção:** **https://zerafilas.com.br**, com front e API na mesma origem (sem CORS e sem `REACT_APP_API_URL`), em VPS Hostinger com nginx, PHP 8.5-FPM e MySQL, TLS do Let's Encrypt. O deploy, o cron da retenção e as pendências (SMTP desligado até a #30) estão no [`server/README.md`](server/README.md).
-- **Mesma origem:** deixe `REACT_APP_API_URL` vazia se um proxy encaminha `/api` para o PHP; assim não há CORS.
+- **Mesma origem:** em produção, front e API ficam na mesma origem (o nginx encaminha `/api` ao PHP), então `REACT_APP_API_URL` fica vazia e não há CORS.
 - **Produção:** use HTTPS na API; um site em HTTPS não consegue chamar uma API em HTTP.
-- **Rotas do front:** a hospedagem precisa devolver o `index.html` para qualquer caminho (por exemplo `/fila/veste-bem`), senão o link do QRCode dá 404 ao abrir direto.
+- **Rotas do front:** a hospedagem precisa devolver o `index.html` para qualquer caminho (por exemplo `/fila/veste-bem`), senão o link do QRCode dá 404 ao abrir direto. Isso já está configurado em produção.
 - **Nunca** coloque segredos em variáveis `REACT_APP_*`: tudo o que começa com esse prefixo vai para o navegador de todos.
 
 ### Conta, login e sessão
@@ -60,6 +59,19 @@ O CI (`.github/workflows/ci.yml`) roda estes comandos a cada push e pull request
 | `composer test` (em `server/`) | PHP 8.5 | Testes da API (PHPUnit), em SQLite e em MySQL |
 
 O OpenSpec exige Node 20.19 ou mais novo, por isso roda separado do app. Para rodá-lo localmente, use outro terminal com Node 20.19+ e a CLI instalada (veja a seção abaixo).
+
+## Produção
+
+O ZeraFilas está publicado em **https://zerafilas.com.br** (e em `www`):
+
+- **Servidor:** Hostinger VPS `srv658911` (Debian 13), com nginx, **PHP 8.5-FPM** e MySQL 8.0.
+- **Front e API na mesma origem:** o nginx serve o build do CRA em `/` e encaminha `/api` ao PHP; assim não há CORS e `REACT_APP_API_URL` fica vazia.
+- **HTTPS:** certificado Let's Encrypt para o domínio e o `www`, com renovação automática e `http://` redirecionando para `https://`.
+- **Retenção de dados:** `php bin/limpar` roda de hora em hora por cron.
+- **Deploy, caminhos e layout:** no [`server/README.md`](server/README.md#hospedagem).
+- **Pendências:** o envio de e-mail está desligado (#30) e o contato do aviso de privacidade ainda é provisório (#46).
+
+Todas as rotas do front (`/fila/:slug`, `/dashboard`, `/redefinir-senha`, `/confirmar-email` e `/privacidade`) devolvem o `index.html` quando abertas direto, e os caminhos `/api/...` continuam indo para a API.
 
 ## Desenvolvimento com OpenSpec
 
