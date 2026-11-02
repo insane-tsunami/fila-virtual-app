@@ -5,7 +5,7 @@ Este arquivo cobre só este repositório. O workspace do host está em `/home/ts
 ## Visão geral
 
 - Front: Create React App 3.4.1, React 16, Material-UI v4, react-router v5. Rotas em `src/App.js`, HTTP em `src/api.js`, sessão/auth em `src/sessao/`.
-- API: PHP 8.3 + Slim 4 em `server/`. As rotas são montadas à mão em `server/app/support/Aplicacao.php` (não há arquivo de rotas); os namespaces PSR-4 `Controllers\`, `Services\`, `Models\`, `Support\` e `Middleware\` mapeiam para `server/app/*`.
+- API: PHP 8.5 + Slim 4 em `server/`. As rotas são montadas à mão em `server/app/support/Aplicacao.php` (não há arquivo de rotas); os namespaces PSR-4 `Controllers\`, `Services\`, `Models\`, `Support\` e `Middleware\` mapeiam para `server/app/*`.
 - Comportamento: `openspec/specs/` é a fonte de verdade. Mudanças propostas ficam em `openspec/changes/<change>/` (proposal, design, tasks e deltas de spec) e vão para `openspec/changes/archive/` quando concluídas. Contexto em `openspec/config.yaml`; comandos/skills `/opsx:*` em `.claude/`.
 - Documentação longa: `README.md` (integração e fluxo OpenSpec) e `server/README.md` (variáveis, endpoints e limites). Prefira esses arquivos a adivinhar.
 

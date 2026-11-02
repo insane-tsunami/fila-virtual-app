@@ -56,7 +56,7 @@ O CI (`.github/workflows/ci.yml`) roda estes comandos a cada push e pull request
 | `CI=true yarn test --watchAll=false` | 16 | Testes das telas (Jest + Testing Library) |
 | `yarn build` | 16 | Build de produção (no CI, warnings viram erro) |
 | `openspec validate --all --strict` | 20.19+ | Specs do OpenSpec |
-| `composer test` (em `server/`) | PHP 8.3 | Testes da API (PHPUnit), em SQLite e em MySQL |
+| `composer test` (em `server/`) | PHP 8.5 | Testes da API (PHPUnit), em SQLite e em MySQL |
 
 O OpenSpec exige Node 20.19 ou mais novo, por isso roda separado do app. Para rodá-lo localmente, use outro terminal com Node 20.19+ e a CLI instalada (veja a seção abaixo).
 
@@ -87,6 +87,6 @@ O contexto do projeto (stack, rotas, regras) está em `openspec/config.yaml`. Se
 
 ### Configuração do servidor
 
-O backend (PHP 8.3 ou mais novo) está em `server/`. Como instalar, configurar, migrar o banco, rodar e testar está no [`server/README.md`](server/README.md).
+O backend (PHP 8.5 ou mais novo) está em `server/`. Como instalar, configurar, migrar o banco, rodar e testar está no [`server/README.md`](server/README.md).
 
 A configuração vem de variáveis de ambiente (`DB_DRIVER`, `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CORS_ORIGIN`, `TRUSTED_PROXIES`, `RATE_LIMIT_*`, `APP_URL` e `MAIL_*`); use `server/.env.example` como modelo e nunca commite segredos.
