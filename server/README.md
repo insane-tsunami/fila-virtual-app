@@ -6,7 +6,7 @@ Backend PHP do ZeraFilas: a API que o cliente usa para entrar na fila virtual e 
 
 ## Requisitos
 
-- PHP **8.3 ou mais novo**, com as extensões `pdo_sqlite` (testes) e `pdo_mysql` (produção)
+- PHP **8.5 ou mais novo**, com as extensões `pdo_sqlite` (testes) e `pdo_mysql` (produção)
 - [Composer](https://getcomposer.org/) 2
 
 ## Instalação
@@ -323,7 +323,7 @@ server/
 
 ## Hospedagem
 
-A hospedagem ainda não foi definida. O código não depende de nenhum provedor: serve qualquer hospedagem com PHP 8.3+ e MySQL, apontando a raiz do site para `public/`, definindo as variáveis de ambiente e rodando `php bin/migrate` a cada deploy. Em Apache, o `public/.htaccess` já direciona tudo ao front controller.
+A hospedagem ainda não foi definida. O código não depende de nenhum provedor: serve qualquer hospedagem com PHP 8.5+ e MySQL, apontando a raiz do site para `public/`, definindo as variáveis de ambiente e rodando `php bin/migrate` a cada deploy. Em Apache, o `public/.htaccess` já direciona tudo ao front controller.
 
 **Agende o `php bin/limpar` (retenção de dados).** A aplicação não limpa sozinha: sem o cron, as entradas esquecidas ficam na fila e os telefones das entradas encerradas ficam no banco além do prazo. De hora em hora basta (mais frequente não muda o resultado; mais raro só atrasa o encerramento e o apagamento). Exemplo de crontab, com o caminho do `server/`:
 

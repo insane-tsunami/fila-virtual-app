@@ -10,7 +10,7 @@ context: |
   Front-end: React 16 (Create React App 3.4.1), Material-UI v4, styled-components,
   react-router v5. Rotas: /, /cadastro, /login, /dashboard, /dashboard/qrcode,
   /dashboard/perfil e a rota pública /fila/:slug (página do cliente, sem login).
-  Backend (server/): PHP 8.3+ com Composer (Slim 4, illuminate/database, guzzle),
+  Backend (server/): PHP 8.5+ com Composer (Slim 4, illuminate/database, guzzle),
   MySQL em produção e SQLite nos testes. Tabelas estabelecimentos (nome, slug,
   endereco_publico, conta_id), contas (e-mail, CNPJ numérico ou alfanumérico com dígito verificador conferido e
   guardado em maiúsculas, hash da senha), sessoes

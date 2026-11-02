@@ -20,7 +20,7 @@ final class QueueManagementApiTest extends ApiTestCase
         return $this->json($resposta);
     }
 
-    private function finalizar(string $codigo, array $cabecalhos = null): \Psr\Http\Message\ResponseInterface
+    private function finalizar(string $codigo, ?array $cabecalhos = null): \Psr\Http\Message\ResponseInterface
     {
         return $this->chamar('POST', self::ENTRADAS . "/$codigo/finalizar", null, $cabecalhos ?? $this->comSessao());
     }
